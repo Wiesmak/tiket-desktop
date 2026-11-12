@@ -17,3 +17,9 @@
 12. Five mock builder steps reveal distinct temporary content; roster programs remain TextBox strings. No editable backend DRAFT, persistence or creation.
 13. Appearance stays session-only, defaults to System and needs no Windows storage interface in Phase 1. Native theme resources provide the page surface even when a forced theme differs from OS Mica.
 14. Basic keyboard/focus and theme checks are Phase 1 requirements. Narrator/high contrast, full text scaling and multi-DPI certification belong to Phase 8.
+
+## Phase 1 corrective review — 2026-11-12
+
+15. Supersedes decisions 9–10: move the 28/36 native title into the same uncapped workspace as status and content. Use 24/12 horizontal gutters and a separate native minimal-menu band; retain the 900-content-pixel breakpoint, use 24-pixel column spacing and cap only primary columns (cashier 680, builder 760). No fake content fills the remaining vertical space.
+16. Guard initial navigation with IsLoaded before overlay dismissal. Pre-layout DisplayMode is not a reliable reason to close a default pane. Preserve native Auto thresholds, manual wide collapse across resize cycles; an uncollapsed Auto pane expands again on returning wide. No persistent preference or per-resize forced opening.
+17. Owner rejected the earlier visual composition despite green CI. Historical validation below the original head is retained; corrected screenshots require owner review before merge.

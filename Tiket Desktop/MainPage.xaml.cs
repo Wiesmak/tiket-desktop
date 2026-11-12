@@ -22,6 +22,14 @@ public sealed partial class MainPage : Page
     private void OnWorkspaceSizeChanged(object sender, SizeChangedEventArgs args) =>
         VisualStateManager.GoToState(this, PreviewPresentation.LayoutFor(args.NewSize.Width).ToString(), false);
 
+    private void OnDisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)
+    {
+        if (WorkspaceGutter is null) return;
+        // The native minimal-mode menu occupies its own top band; content follows it.
+        WorkspaceGutter.Padding = args.DisplayMode == NavigationViewDisplayMode.Minimal
+            ? new Thickness(12, 48, 12, 24) : new Thickness(24, 16, 24, 24);
+    }
+
     private void OnNavigationChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         var destination = args.IsSettingsSelected ? Destination.Connection :
@@ -38,7 +46,7 @@ public sealed partial class MainPage : Page
             _ => "Cashier"
         };
         ContentScroll.ChangeView(null, 0, null, true);
-        if (sender.DisplayMode != NavigationViewDisplayMode.Expanded && sender.IsPaneOpen)
+        if (IsLoaded && sender.DisplayMode != NavigationViewDisplayMode.Expanded && sender.IsPaneOpen)
         {
             focusAfterPaneClose = true;
             sender.IsPaneOpen = false;

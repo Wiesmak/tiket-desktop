@@ -12,7 +12,7 @@ public static class PreviewPresentation
         double.IsFinite(contentWidth) && contentWidth >= ColumnsMinimumWidth
             ? WorkspaceLayout.Columns : WorkspaceLayout.Stacked;
 
-    public const string MockBanner = "All data is fictional. No sign-in, backend calls, purchases or printing.";
+    public const string MockBanner = "All data is fictional. No backend, purchases or printing.";
     public static string PrintSummary(MockPrintState state) => state switch
     {
         MockPrintState.Pending => "MOCK · Sample 001 · Print pending example",

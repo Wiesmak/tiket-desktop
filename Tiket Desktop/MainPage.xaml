@@ -10,13 +10,15 @@
                 <VisualState x:Name="Stacked" />
                 <VisualState x:Name="Columns">
                     <VisualState.Setters>
-                        <Setter Target="CashierPrimary.Width" Value="2*" />
-                        <Setter Target="CashierLayout.ColumnSpacing" Value="20" />
-                        <Setter Target="AdminLayout.ColumnSpacing" Value="20" />
+                        <Setter Target="CashierPrimary.Width" Value="*" />
+                        <Setter Target="CashierPrimary.MaxWidth" Value="680" />
+                        <Setter Target="AdminPrimary.MaxWidth" Value="760" />
+                        <Setter Target="CashierLayout.ColumnSpacing" Value="24" />
+                        <Setter Target="AdminLayout.ColumnSpacing" Value="24" />
                         <Setter Target="CashierSecondary.Width" Value="*" />
                         <Setter Target="RecentPanel.(Grid.Column)" Value="1" />
                         <Setter Target="RecentPanel.(Grid.Row)" Value="0" />
-                        <Setter Target="AdminPrimary.Width" Value="2*" />
+                        <Setter Target="AdminPrimary.Width" Value="*" />
                         <Setter Target="AdminSecondary.Width" Value="*" />
                         <Setter Target="AdminSummary.(Grid.Column)" Value="1" />
                         <Setter Target="AdminSummary.(Grid.Row)" Value="0" />
@@ -25,35 +27,33 @@
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
         <NavigationView x:Name="Navigation" PaneDisplayMode="Auto" OpenPaneLength="220"
-                        IsBackButtonVisible="Collapsed" AlwaysShowHeader="True"
+                        IsBackButtonVisible="Collapsed" AlwaysShowHeader="False"
+                        DisplayModeChanged="OnDisplayModeChanged"
                         SelectionChanged="OnNavigationChanged" PaneClosed="OnPaneClosed"
                         AutomationProperties.Name="Workspace navigation">
-            <NavigationView.Header>
-                <TextBlock x:Name="WorkspaceHeading" Text="Cashier" IsTabStop="True"
-                           Style="{ThemeResource SubtitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1" />
-            </NavigationView.Header>
             <NavigationView.MenuItems>
                 <NavigationViewItem x:Name="CashierItem" Content="Cashier" Tag="Cashier" Icon="Shop" AccessKey="C" />
                 <NavigationViewItem Content="Administration" Tag="Administration" Icon="Edit" AccessKey="A" />
             </NavigationView.MenuItems>
             <ScrollViewer x:Name="ContentScroll" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
                           VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
-                <Grid Padding="24,8,24,24">
-                    <StackPanel x:Name="Workspace" Spacing="16" MaxWidth="1200" HorizontalAlignment="Stretch"
+                <Grid x:Name="WorkspaceGutter" Padding="24,16,24,24">
+                    <StackPanel x:Name="Workspace" Spacing="12" HorizontalAlignment="Stretch"
                                 SizeChanged="OnWorkspaceSizeChanged">
+                        <TextBlock x:Name="WorkspaceHeading" Text="Cashier" IsTabStop="True"
+                                   Style="{ThemeResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1" />
                         <InfoBar IsOpen="True" IsClosable="False" Severity="Informational"
-                                 Title="Unconnected — demonstration only"
+
                                  Message="{x:Bind app:PreviewPresentation.MockBanner}" />
                         <StackPanel x:Name="CashierPanel" Spacing="8">
-                            <TextBlock Text="Demo station 01 · Sample event · no backend event selected" TextWrapping="Wrap" />
+                            <TextBlock Text="Demo station 01 · Sample event · Race 06 (mock)" TextWrapping="Wrap" />
                             <Border Padding="12" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="Most recent example · fictional local preview" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                    <TextBlock Text="Latest print (mock)" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
                                     <TextBlock Text="{x:Bind app:PreviewPresentation.PrintSummary(app:MockPrintState.Failed)}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
-                            <TextBlock Text="Sample race 06 · betting-open example (mock)" TextWrapping="Wrap" />
                             <Grid x:Name="CashierLayout" RowSpacing="16">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition x:Name="CashierPrimary" Width="*" />
@@ -95,8 +95,6 @@
                             </Grid>
                         </StackPanel>
                         <StackPanel x:Name="AdminPanel" Visibility="Collapsed" Spacing="12">
-                            <InfoBar IsOpen="True" IsClosable="False" Severity="Warning" Title="Server DRAFT is immutable"
-                                     Message="Local mock only. CreateRaceDay creates the whole definition once. No server draft is loaded or edited." />
                             <Grid x:Name="AdminLayout" RowSpacing="16">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition x:Name="AdminPrimary" Width="*" />
@@ -104,6 +102,9 @@
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <StackPanel Spacing="12">
+                                    <InfoBar IsOpen="True" IsClosable="False" Severity="Warning"
+                                             Title="Server DRAFT is immutable"
+                                             Message="Edit locally until submission. CreateRaceDay submits the complete definition once, even in DRAFT." />
                                     <ComboBox x:Name="BuilderStep" Header="Builder step (mock only)" SelectedIndex="0"
                                               SelectionChanged="OnBuilderStepChanged" AutomationProperties.Name="Local race-day builder step" HorizontalAlignment="Stretch">
                                         <x:String>1 · Basics</x:String><x:String>2 · Races</x:String><x:String>3 · Runners</x:String>

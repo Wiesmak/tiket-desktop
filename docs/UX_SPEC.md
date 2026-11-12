@@ -1,8 +1,10 @@
 ﻿# Native shell UX — Phase 1
 
-Cashier opens first, unconnected. All fixture statuses are explicitly MOCK; all unavailable backend actions remain disabled. The native title bar carries the app identity; NavigationView.Header carries the current workspace heading. There is no text pane footer. Auto navigation uses the native 640/1008 effective-pixel thresholds, a 220-pixel open pane and native compact/minimal menu behavior. Settings remains in the native footer.
+Cashier opens first, unconnected. All fixture statuses are explicitly MOCK; all unavailable backend actions remain disabled. The native title bar carries the app identity; a TitleTextBlockStyle heading shares the scrolling workspace container. There is no text pane footer. Auto navigation uses the native 640/1008 effective-pixel thresholds, a 220-pixel open pane and native compact/minimal menu behavior. Settings remains in the native footer.
 
-The workspace has 24-pixel horizontal padding and a 1200-pixel maximum width. At **900 effective content pixels**, after navigation and padding, cashier and administration use 2:1 columns separated by 20 pixels. Below 900 they stack without a spare column gap. XAML visual states contain all relocation setters; one view-only size event measures the actual workspace and selects a state. This differs from AdaptiveTrigger.MinWindowWidth, which measures the outer window.
+The workspace fills available width with 24-pixel horizontal gutters (12 in minimal mode). There is no global width cap. Title, mock InfoBar, context and major work surfaces share this container. The top gutter is 16 pixels in compact/expanded modes; minimal mode reserves the native 48-pixel menu band before the title, without a duplicate NavigationView.Header or negative margins.
+
+At **900 effective content pixels**, after navigation and padding, two equally weighted columns use a 24-pixel gap. Primary columns stop growing at 680 pixels for cashier inputs and 760 for the builder; supporting panels use the remaining width. Below 900, full-width sections stack. XAML visual states hold these setters; the existing view-only size event measures actual workspace width.
 
 Cashier always shows a non-interactive most-recent fictional failed-print summary above the entry editor. The full fictional local list is beside the editor in columns and below it when stacked. Pending, dispatched and failed have distinct words; dispatched explicitly does not confirm paper delivery. This is neither a POS-wide query nor an actual print queue. Player, bet type, selection mode, illustrative runner checks, units and unavailable quote follow in order.
 
@@ -15,3 +17,7 @@ Tab/Shift+Tab traverse native controls. Space opens the focused menu button, Esc
 Measured Phase 1 coverage is in [VALIDATION_PHASE_1.md](VALIDATION_PHASE_1.md). Narrator, high contrast, full text scaling and multi-DPI certification are deferred to Phase 8. Native labels, heading semantics, automation names and focus cues remain; no accessibility certification or operational readiness is claimed.
 
 Future cashier composition uses authoritative server quotes; purchases require durable exact intents and recovery. Administration prepares a complete local definition before one-shot creation. These features remain outside Phase 1.
+
+## Corrective continuation — 2026-11-12
+
+Initial destination selection must not close the pane before Loaded: the initial DisplayMode is not yet the measured window mode. Overlay dismissal now applies only to loaded navigation. Auto keeps its native thresholds and user-collapse policy: manual collapse survives wide resizing, navigation and theme changes; explicit manual collapse also survives a narrow→wide cycle; without explicit collapse Auto expands again on returning wide. No resize handler writes IsPaneOpen. Latest print remains before cashier inputs; the compact global mock message avoids repeating the same disclaimer. The immutable-DRAFT warning belongs to the builder column and precedes its selector.
