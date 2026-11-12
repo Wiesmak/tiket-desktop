@@ -1,6 +1,6 @@
 ﻿# Tiket Desktop
 
-Phase 2 adds managed connection profiles, system-browser Code+PKCE sign-in, memory-only sessions and generated read-only gRPC event overview calls in Settings. Cashier/Administration transaction surfaces remain fictional MOCK previews with all backend mutations disabled. See [connection setup](docs/CONNECTION_AND_OIDC.md) and [measured Phase 2 validation](docs/VALIDATION_PHASE_2.md). External-provider and packaged authenticated-read acceptance remain unverified; this is not production readiness.
+Phase 3 adds a native cashier selection composer and read-only server-authoritative QuoteCoupon using Phase 2 managed profiles, browser PKCE and memory-only sessions. See the [cashier guide](docs/CASHIER_QUOTES.md), [connection setup](docs/CONNECTION_AND_OIDC.md) and [Phase 3 validation](docs/VALIDATION_PHASE_3.md). Purchases, printing and all backend mutations remain disabled. Real OIDC packaged smoke and real Tiket quotation remain separately unverified.
 
 ## Build and run
 

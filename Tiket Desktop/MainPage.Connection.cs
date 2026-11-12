@@ -11,6 +11,7 @@ public sealed partial class MainPage
 
     private void InitializeConnection()
     {
+        InitializeComposer();
         connection.Changed += RenderConnection;
         try
         {
@@ -78,5 +79,6 @@ public sealed partial class MainPage
                     string.Join("\n", r.Definition.Runners.Select(h => $"  {h.ProgramNumber} · {h.HorseId} · {h.DisplayName}"))));
         }
         RenderConnectionControls();
+        RefreshComposerContext();
     }
 }

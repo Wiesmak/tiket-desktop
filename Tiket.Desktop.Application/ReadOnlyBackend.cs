@@ -7,6 +7,8 @@ namespace Tiket.Desktop.Application;
 public interface IReadOnlyBackend : IDisposable
 {
     Task<PingResponse> PingAsync(CancellationToken cancellationToken);
+    Task<QuoteCouponResponse> QuoteAsync(QuoteCouponRequest request, string accessToken, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
     Task<EventOverview> ReadAsync(Guid day, string accessToken, CancellationToken cancellationToken);
 }
 public sealed record EventOverview(RaceDayInformation Day, RaceList Races, DateTimeOffset ReadAt);
@@ -56,6 +58,14 @@ public sealed class ReadOnlyBackend : IReadOnlyBackend
             races.Races[0] = detail;
         }
         return new EventOverview(info, races, DateTimeOffset.UtcNow);
+    }
+    public async Task<QuoteCouponResponse> QuoteAsync(QuoteCouponRequest request, string accessToken, CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(request.RaceDayId, out var day) || !profile.KnownEvents.Contains(day))
+            throw new ArgumentException("Select a provisioned known event.");
+        return await new BettingService.BettingServiceClient(channel).QuoteCouponAsync(request,
+            new Metadata { { "authorization", "Bearer " + accessToken } },
+            DateTime.UtcNow.Add(deadline), cancellationToken);
     }
     public void Dispose() => channel.Dispose();
 }
