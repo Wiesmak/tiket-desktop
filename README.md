@@ -1,6 +1,6 @@
 ﻿# Tiket Desktop
 
-Phase 1 responsive native Windows shell in the existing Rider solution. Cashier, Administration and Settings show fictional, unconnected previews. A latest mock status remains above the cashier editor; administration has five distinct local preview steps. Inputs and appearance are session-only. Quote, purchase, event creation and connect are disabled. No login, financial mutations, persistence, printer access or backend traffic occurs.
+Phase 2 adds managed connection profiles, system-browser Code+PKCE sign-in, memory-only sessions and generated read-only gRPC event overview calls in Settings. Cashier/Administration transaction surfaces remain fictional MOCK previews with all backend mutations disabled. See [connection setup](docs/CONNECTION_AND_OIDC.md) and [measured Phase 2 validation](docs/VALIDATION_PHASE_2.md). External-provider and packaged authenticated-read acceptance remain unverified; this is not production readiness.
 
 ## Build and run
 
@@ -29,6 +29,8 @@ The verified run path uses the existing WinApp integration to register a develop
 | Microsoft.WindowsAppSDK | 2.6.5 |
 | Microsoft.Windows.SDK.BuildTools | 10.0.28000.2957 |
 | Microsoft.Windows.SDK.BuildTools.WinApp | 0.8.0 |
+| Duende.IdentityModel.OidcClient (Apache-2.0) | 7.1.1 |
+| Microsoft.IdentityModel.JsonWebTokens (MIT) | 8.23.0 |
 | Google.Protobuf | 3.33.1 |
 | Grpc.Tools / Grpc.Net.Client | 2.76.0 |
 | bundled protoc | 31.1 |

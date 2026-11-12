@@ -16,3 +16,7 @@ Adapted from the inception roadmap for the existing .NET 11 / Rider solution. Ea
 | 9 | Approved signed MSIX distribution, update/rollback/journal migration, operator docs and controlled release |
 
 Backend remains the only race/money/print authority. No silent financial retry, client settlement engine, offline bet or invented endpoint. A green compile does not satisfy local UI/accessibility or production readiness gates. CI has no release credentials.
+
+## Phase 2 delivery status — 2026-11-12
+
+Implemented profile/session/browser and read-only generated gRPC infrastructure plus native Settings overview. Local unit/protocol/transport tests and build evidence are recorded in VALIDATION_PHASE_2.md. External-provider smoke is unavailable by owner confirmation; packaged authenticated callback and actual Tiket data remain unverified acceptance gates. Do not mark Phase 2 operationally complete or start Phase 3 on the basis of synthetic tests. Phase 3 requires owner review, a compatible provisioned HTTPS provider/backend and completion of outstanding native acceptance, then a separately scoped read-only quote design. No Phase 3–9 operation is enabled here.

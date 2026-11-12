@@ -45,7 +45,7 @@
                         <InfoBar IsOpen="True" IsClosable="False" Severity="Informational"
 
                                  Message="{x:Bind app:PreviewPresentation.MockBanner}" />
-                        <StackPanel x:Name="CashierPanel" Spacing="8">
+                        <StackPanel x:Name="CashierPanel" Spacing="8"><TextBlock x:Name="CashierLiveContext" Visibility="Collapsed" TextWrapping="Wrap" />
                             <TextBlock Text="Demo station 01 · Sample event · Race 06 (mock)" TextWrapping="Wrap" />
                             <Border Padding="12" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
@@ -94,7 +94,7 @@
                                 </Border>
                             </Grid>
                         </StackPanel>
-                        <StackPanel x:Name="AdminPanel" Visibility="Collapsed" Spacing="12">
+                        <StackPanel x:Name="AdminPanel" Visibility="Collapsed" Spacing="12"><TextBlock x:Name="AdminLiveContext" Visibility="Collapsed" TextWrapping="Wrap" />
                             <Grid x:Name="AdminLayout" RowSpacing="16">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition x:Name="AdminPrimary" Width="*" />
@@ -153,14 +153,25 @@
                             </Grid>
                         </StackPanel>
                         <StackPanel x:Name="ConnectionPanel" Visibility="Collapsed" Spacing="12" MaxWidth="720" HorizontalAlignment="Left">
-                            <TextBlock Text="{x:Bind State.ConnectionStatus}" TextWrapping="Wrap" />
-                            <TextBlock Text="No endpoint or credentials are configured. Managed HTTPS and browser sign-in with PKCE are planned." TextWrapping="Wrap" />
-                            <Button Content="Connect (future phase)" IsEnabled="False" />
+                            <ComboBox x:Name="Profiles" Header="Managed connection profile" HorizontalAlignment="Stretch" SelectionChanged="OnProfileChanged" />
+                            <TextBlock x:Name="ProfileDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                            <TextBlock x:Name="SessionStatus" TextWrapping="Wrap" />
+                            <TextBlock x:Name="OperatorStatus" TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button x:Name="PingButton" Content="Test API" Click="OnPing" />
+                                <Button x:Name="SignInButton" Content="Sign in with browser" Click="OnSignIn" />
+                                <Button x:Name="CancelButton" Content="Cancel" Click="OnCancelConnection" />
+                            </StackPanel>
+                            <Button x:Name="SignOutButton" Content="Sign out / switch operator" Click="OnSignOut" />
+                            <TextBlock x:Name="PingDetails" TextWrapping="Wrap" />
+                            <ComboBox x:Name="KnownEvents" Header="Known event UUID (selection, not a grant)" HorizontalAlignment="Stretch" />
+                            <Button x:Name="ReadButton" Content="Read / refresh event" Click="OnReadEvent" />
+                            <TextBlock x:Name="EventDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                             <ComboBox Header="Appearance" SelectedIndex="0" SelectionChanged="OnThemeChanged" AutomationProperties.Name="Appearance">
                                 <x:String>System</x:String><x:String>Light</x:String><x:String>Dark</x:String>
                             </ComboBox>
                             <TextBlock Text="Appearance lasts for this session. Restart follows the system theme." TextWrapping="Wrap" />
-                            <TextBlock Text="About · Phase 1 mock preview · no operational connection" TextWrapping="Wrap" />
+                            <TextBlock Text="About · Phase 2 read-only connection · all transactions remain unavailable" TextWrapping="Wrap" />
                         </StackPanel>
                     </StackPanel>
                 </Grid>

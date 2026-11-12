@@ -1,0 +1,88 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tiket Desktop managed connections",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "Version",
+    "Profiles"
+  ],
+  "properties": {
+    "Version": {
+      "const": 1
+    },
+    "Profiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "Id",
+          "DisplayName",
+          "Backend",
+          "Issuer",
+          "ClientId",
+          "ApiAudience",
+          "Scopes",
+          "KnownEvents",
+          "DevelopmentLoopback"
+        ],
+        "properties": {
+          "Id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$"
+          },
+          "DisplayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "Backend": {
+            "type": "string",
+            "format": "uri"
+          },
+          "Issuer": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "ClientId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "ApiAudience": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "Scopes": {
+            "type": "array",
+            "uniqueItems": true,
+            "contains": {
+              "const": "openid"
+            },
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "not": {
+                "const": "offline_access"
+              }
+            }
+          },
+          "KnownEvents": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "DevelopmentLoopback": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
