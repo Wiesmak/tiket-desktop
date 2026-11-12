@@ -1,0 +1,18 @@
+﻿{
+  "repository": "https://github.com/Wiesmak/tiket",
+  "commit": "d840ab12a08b06304b5e4d26568ba33e98a65ddc",
+  "sourceRoot": "tiket-contracts/src/main/proto",
+  "generation": {
+    "Google.Protobuf": "3.33.1",
+    "Grpc.Tools": "2.76.0",
+    "Grpc.Net.Client": "2.76.0",
+    "mode": "Client",
+    "protoc": "31.1"
+  },
+  "files": {
+    "pl/umamusume/tiket/api/v1/account.proto": "ad524e412ae4d43a02b414bccaf0cba1404d1102380d76f45f21a91c6da4b3d4",
+    "pl/umamusume/tiket/api/v1/administration.proto": "7adaeb0ba42ccd9c88752f4a751df433f4d9a87a47aa06a7c3da60f4584252f2",
+    "pl/umamusume/tiket/api/v1/betting.proto": "c400ffc821b2ca053331528fa8cf73421175379c8c4c7afa5ed7599b691077e8",
+    "pl/umamusume/tiket/api/v1/system.proto": "b2dcdc1d2041ffb5f4dda30cd8e93b89e579821fef30c6db94f4ebd9daa52009"
+  }
+}

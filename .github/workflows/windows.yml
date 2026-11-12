@@ -1,0 +1,43 @@
+﻿name: Windows x64 foundation
+on:
+  push:
+    branches: [master, feat/phase0-foundation]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  foundation:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    env:
+      WINAPP_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '11.0.100'
+      - run: dotnet --info
+      - run: dotnet restore "Tiket Desktop.slnx" -p:Platform=x64
+      - run: dotnet build "Tiket Desktop.slnx" -c Debug -p:Platform=x64 --no-restore
+      - run: dotnet test "Tiket.Desktop.Tests/Tiket.Desktop.Tests.csproj" -c Debug --no-build --no-restore
+      - name: Local contract checks (no upstream network)
+        run: ./scripts/check-contracts.ps1
+      - name: Whitespace validation
+        run: git diff --check
+      - name: Reject floating direct package references
+        shell: pwsh
+        run: |
+          $projects = Get-ChildItem -Recurse -Filter *.csproj | Where-Object FullName -NotMatch '[\\/](obj|bin)[\\/]'
+          foreach ($project in $projects) {
+            [xml]$xml = Get-Content -LiteralPath $project.FullName -Raw
+            foreach ($reference in $xml.Project.ItemGroup.PackageReference) {
+              if ($reference -and $reference.Version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
+                throw "Unpinned direct dependency in $($project.FullName)"
+              }
+            }
+          }
+      - run: dotnet build "Tiket Desktop.slnx" -c Release -p:Platform=x64
+      - name: Unsigned packaging validation only
+        run: dotnet build "Tiket Desktop/Tiket Desktop.csproj" -c Release -p:Platform=x64 -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never

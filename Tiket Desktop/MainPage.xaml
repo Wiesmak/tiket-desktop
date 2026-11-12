@@ -8,11 +8,111 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <!--
-        This is the main content area of your application.
-        Add your UI elements here — for example, controls, layouts, and data-bound views.
-        Use 'dotnet new winui-page' to create additional pages and navigate to them via
-        the Frame in MainWindow (RootFrame).
-    -->
-    <Grid />
+    <NavigationView x:Name="Navigation" PaneDisplayMode="Auto"
+                    OpenPaneLength="220" IsBackButtonVisible="Collapsed"
+                    SelectionChanged="OnNavigationChanged"
+                    AutomationProperties.Name="Workspace navigation">
+        <NavigationView.MenuItems>
+            <NavigationViewItem x:Name="CashierItem" Content="Cashier" Tag="Cashier" Icon="Shop" AccessKey="C" />
+            <NavigationViewItem Content="Administration" Tag="Administration" Icon="Edit" AccessKey="A" />
+        </NavigationView.MenuItems>
+        <NavigationView.PaneFooter>
+            <TextBlock Text="PHASE 0 • MOCK" Margin="16" TextWrapping="Wrap" />
+        </NavigationView.PaneFooter>
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
+            <StackPanel Spacing="16" Padding="24,12,24,24" HorizontalAlignment="Stretch">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Tiket Desktop" Style="{ThemeResource TitleTextBlockStyle}" />
+                    <TextBlock Text="{x:Bind State.Station}" TextWrapping="Wrap" />
+                    <TextBlock Text="{x:Bind State.Event}" TextWrapping="Wrap" />
+                </StackPanel>
+                <InfoBar IsOpen="True" IsClosable="False" Severity="Informational"
+                         Title="Unconnected — demonstration only"
+                         Message="All data is fictional. No sign-in, backend calls, purchases or printing." />
+                <StackPanel x:Name="CashierPanel" Spacing="12">
+                    <TextBlock x:Name="CashierHeading" Text="Cashier preview" Style="{ThemeResource SubtitleTextBlockStyle}"
+                               IsTabStop="True" AutomationProperties.HeadingLevel="Level1" />
+                    <TextBlock Text="Active race: Sample race 06 • betting-open example (mock)" TextWrapping="Wrap" />
+                    <Grid x:Name="CashierGrid" ColumnSpacing="20" RowSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="280" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Spacing="12">
+                            <TextBox Header="Player UUID (demo input)" PlaceholderText="No player lookup in Phase 0"
+                                     AutomationProperties.AutomationId="DemoPlayer" AccessKey="P" />
+                            <ComboBox Header="Bet type (preview)" SelectedIndex="0" HorizontalAlignment="Stretch">
+                                <x:String>WIN</x:String><x:String>QUINELLA</x:String>
+                                <x:String>EXACTA</x:String><x:String>TRIFECTA</x:String>
+                            </ComboBox>
+                            <ComboBox Header="Selection mode (preview)" SelectedIndex="0" HorizontalAlignment="Stretch">
+                                <x:String>Normal</x:String><x:String>Wall</x:String><x:String>Box</x:String>
+                            </ComboBox>
+                            <TextBlock Text="Sample runners — selection is illustrative" TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal" Spacing="16">
+                                <CheckBox Content="02 · Runner A" />
+                                <CheckBox Content="03 · Runner B" />
+                            </StackPanel>
+                            <NumberBox Header="Units per combination (demo)" Value="1" Minimum="1" Maximum="100" SmallChange="1"
+                                       SpinButtonPlacementMode="Inline" />
+                            <TextBlock Text="Quote: unavailable • connect in a future phase" TextWrapping="Wrap"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Button Content="Get quote" IsEnabled="False" />
+                                <Button Content="Review purchase" IsEnabled="False" />
+                            </StackPanel>
+                        </StackPanel>
+                        <Border x:Name="RecentPanel" Grid.Column="1" Padding="16" CornerRadius="8"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="Recent tickets (mock)" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                <TextBlock Text="Sample 001 · Print pending example" TextWrapping="Wrap" />
+                                <TextBlock Text="Sample 002 · Dispatched example" TextWrapping="Wrap" />
+                                <TextBlock Text="Sample 003 · Print failed example" TextWrapping="Wrap" />
+                                <TextBlock Text="No tickets exist. Future history covers known local purchases, not all sales at a POS." TextWrapping="Wrap" />
+                                <TextBlock Text="Dispatched does not confirm paper delivery." TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+                <StackPanel x:Name="AdminPanel" Visibility="Collapsed" Spacing="12">
+                    <TextBlock x:Name="AdminHeading" Text="Race-day builder preview" Style="{ThemeResource SubtitleTextBlockStyle}"
+                               IsTabStop="True" AutomationProperties.HeadingLevel="Level1" />
+                    <TextBlock Text="Local mock draft only. Backend CreateRaceDay is one-shot; its DRAFT cannot be edited." TextWrapping="Wrap" />
+                    <ComboBox x:Name="BuilderStep" Header="Builder step" SelectedIndex="0" SelectionChanged="OnBuilderStepChanged"
+                              AutomationProperties.Name="Local race-day builder step" HorizontalAlignment="Stretch">
+                        <x:String>1 · Basics</x:String><x:String>2 · Races</x:String><x:String>3 · Runners</x:String>
+                        <x:String>4 · Pool rules</x:String><x:String>5 · Review</x:String>
+                    </ComboBox>
+                    <TextBlock x:Name="StepDescription" TextWrapping="Wrap" />
+                    <TextBox Header="Race title (temporary demo input)" Text="Sample sprint" />
+                    <TextBlock Text="Roster preview • changes are temporary and never sent" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                    <Grid ColumnSpacing="12" RowSpacing="8">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <TextBox Header="Program" Text="02" AutomationProperties.Name="Runner A program number" />
+                        <TextBox Grid.Column="1" Header="Runner name" Text="Runner A" AutomationProperties.Name="Runner A display name" />
+                        <TextBox Grid.Row="1" Text="03" AutomationProperties.Name="Runner B program number" />
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="Runner B" AutomationProperties.Name="Runner B display name" />
+                    </Grid>
+                    <Button Content="Create race day (unavailable)" IsEnabled="False" />
+                </StackPanel>
+                <StackPanel x:Name="ConnectionPanel" Visibility="Collapsed" Spacing="12">
+                    <TextBlock x:Name="ConnectionHeading" Text="Settings / Connection" Style="{ThemeResource SubtitleTextBlockStyle}"
+                               IsTabStop="True" AutomationProperties.HeadingLevel="Level1" />
+                    <TextBlock Text="{x:Bind State.ConnectionStatus}" TextWrapping="Wrap" />
+                    <TextBlock Text="No endpoint or credentials are configured. Managed HTTPS and browser sign-in with PKCE are planned. This preview stores no configuration." TextWrapping="Wrap" />
+                    <Button Content="Connect (future phase)" IsEnabled="False" />
+                    <ComboBox Header="Appearance" SelectedIndex="0" SelectionChanged="OnThemeChanged" AutomationProperties.Name="Appearance">
+                        <x:String>System</x:String><x:String>Light</x:String><x:String>Dark</x:String>
+                    </ComboBox>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </NavigationView>
 </Page>
