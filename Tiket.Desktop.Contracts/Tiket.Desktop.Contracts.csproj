@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.33.1" />
+    <PackageReference Include="Grpc.Tools" Version="2.76.0" PrivateAssets="all" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.76.0" />
+    <Protobuf Include="../contracts/upstream/**/*.proto" ProtoRoot="../contracts/upstream" GrpcServices="Client" />
+  </ItemGroup>
+</Project>
