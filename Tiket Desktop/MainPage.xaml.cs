@@ -1,5 +1,7 @@
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media.Animation;
+using Windows.UI.ViewManagement;
 using Tiket.Desktop.Application;
 
 namespace Tiket_Desktop;
@@ -9,6 +11,8 @@ public sealed partial class MainPage : Page
     public ShellState State { get; } = new();
     public AppearanceState AppearancePreference { get; } = new();
     private bool focusAfterPaneClose;
+    private readonly UISettings uiSettings = new();
+    private Storyboard? perspectiveTransition;
 
     public MainPage()
     {
@@ -35,6 +39,7 @@ public sealed partial class MainPage : Page
         var destination = args.IsSettingsSelected ? Destination.Connection :
             Enum.TryParse<Destination>((args.SelectedItem as NavigationViewItem)?.Tag?.ToString(), out var value)
                 ? value : Destination.Cashier;
+        var destinationChanged = State.Destination != destination;
         State.Navigate(destination);
         CashierPanel.Visibility = destination == Destination.Cashier ? Visibility.Visible : Visibility.Collapsed;
         AdminPanel.Visibility = destination == Destination.Administration ? Visibility.Visible : Visibility.Collapsed;
@@ -46,12 +51,31 @@ public sealed partial class MainPage : Page
             _ => "Cashier"
         };
         ContentScroll.ChangeView(null, 0, null, true);
+        if (destinationChanged) AnimatePerspective(Workspace);
         if (IsLoaded && sender.DisplayMode != NavigationViewDisplayMode.Expanded && sender.IsPaneOpen)
         {
             focusAfterPaneClose = true;
             sender.IsPaneOpen = false;
         }
         else FocusWorkspace();
+    }
+
+    // Animate existing controls only; visibility, input values and focus remain independent.
+    private void AnimatePerspective(FrameworkElement target)
+    {
+        perspectiveTransition?.Stop();
+        perspectiveTransition = null;
+        if (!IsLoaded || !uiSettings.AnimationsEnabled) return;
+
+        var entrance = new Storyboard();
+        var fade = new FadeInThemeAnimation();
+        var reposition = new RepositionThemeAnimation { FromVerticalOffset = 16 };
+        Storyboard.SetTarget(fade, target);
+        Storyboard.SetTarget(reposition, target);
+        entrance.Children.Add(fade);
+        entrance.Children.Add(reposition);
+        perspectiveTransition = entrance;
+        entrance.Begin();
     }
 
     private void FocusWorkspace() => DispatcherQueue.TryEnqueue(() => WorkspaceHeading.Focus(FocusState.Programmatic));
@@ -73,6 +97,14 @@ public sealed partial class MainPage : Page
         RunnersStep.Visibility = step == 2 ? Visibility.Visible : Visibility.Collapsed;
         PoolsStep.Visibility = step == 3 ? Visibility.Visible : Visibility.Collapsed;
         ReviewStep.Visibility = step == 4 ? Visibility.Visible : Visibility.Collapsed;
+        AnimatePerspective(step switch
+        {
+            0 => BasicsStep,
+            1 => RacesStep,
+            2 => RunnersStep,
+            3 => PoolsStep,
+            _ => ReviewStep
+        });
     }
 
     private void OnThemeChanged(object sender, SelectionChangedEventArgs args)
