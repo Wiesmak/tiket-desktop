@@ -44,13 +44,13 @@
                                    Style="{ThemeResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1" />
                         <InfoBar IsOpen="True" IsClosable="False" Severity="Informational"
 
-                                 Message="{x:Bind app:PreviewPresentation.MockBanner}" />
+                                 Message="Read-only workspace · no purchases or printing. Historic ticket panels are MOCK." />
                         <StackPanel x:Name="CashierPanel" Spacing="8"><TextBlock x:Name="CashierLiveContext" Visibility="Collapsed" TextWrapping="Wrap" />
-                            <TextBlock Text="Demo station 01 · Sample event · Race 06 (mock)" TextWrapping="Wrap" />
+                            <TextBlock x:Name="CashierQuotationHeading" Text="Cashier quotation · disconnected" Style="{ThemeResource BodyStrongTextBlockStyle}" />
                             <Border Padding="12" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="Latest print (mock)" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                    <TextBlock Text="Latest print · MOCK — no real job" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
                                     <TextBlock Text="{x:Bind app:PreviewPresentation.PrintSummary(app:MockPrintState.Failed)}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
@@ -61,31 +61,30 @@
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <StackPanel Spacing="8">
-                                    <TextBox Header="Player UUID (demo input)" PlaceholderText="No player lookup in this preview"
-                                             AutomationProperties.AutomationId="DemoPlayer" AccessKey="P" />
-                                    <ComboBox Header="Bet type (preview)" SelectedIndex="0" HorizontalAlignment="Stretch">
-                                        <x:String>WIN</x:String><x:String>QUINELLA</x:String><x:String>EXACTA</x:String><x:String>TRIFECTA</x:String>
-                                    </ComboBox>
-                                    <ComboBox Header="Selection mode (preview)" SelectedIndex="0" HorizontalAlignment="Stretch">
-                                        <x:String>Normal</x:String><x:String>Wall</x:String><x:String>Box</x:String>
-                                    </ComboBox>
-                                    <TextBlock Text="Sample runners — selection is illustrative" TextWrapping="Wrap" />
-                                    <StackPanel Orientation="Horizontal" Spacing="16">
-                                        <CheckBox Content="02 · Runner A" />
-                                        <CheckBox Content="03 · Runner B" />
-                                    </StackPanel>
-                                    <NumberBox Header="Units per combination (demo)" Value="1" Minimum="1" Maximum="100" SmallChange="1" SpinButtonPlacementMode="Inline" />
-                                    <TextBlock Text="Quote: unavailable · no server connection" TextWrapping="Wrap" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock x:Name="ComposerAvailability" Text="Sign in and read an authorized known event in Settings." TextWrapping="Wrap" />
+                                    <ComboBox x:Name="QuoteRace" Header="Server race" HorizontalAlignment="Stretch" SelectionChanged="OnQuoteRace" />
+                                    <ComboBox x:Name="QuotePool" Header="Bet type" HorizontalAlignment="Stretch" SelectionChanged="OnQuotePool" />
+                                    <TextBlock x:Name="OrderGuidance" TextWrapping="Wrap" />
+                                    <ComboBox x:Name="QuoteMode" Header="Selection mode" HorizontalAlignment="Stretch" SelectionChanged="OnQuoteMode" />
+                                    <StackPanel x:Name="QuoteSlots" Spacing="8" />
+                                    <TextBlock x:Name="BoxCount" TextWrapping="Wrap" Visibility="Collapsed" />
+                                    <ListView x:Name="QuoteBox" SelectionMode="Multiple" MaxHeight="240" Visibility="Collapsed" SelectionChanged="OnQuoteBox" AutomationProperties.Name="Box horses" />
+                                    <TextBox x:Name="QuoteUnits" Header="Units per combination" Text="1" MaxLength="64" AutomationProperties.AutomationId="QuoteUnits" TextChanged="OnQuoteUnits" InputScope="Number" />
+                                    <TextBlock x:Name="QuoteFeedback" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                                    <ProgressRing x:Name="QuoteProgress" IsActive="False" Width="24" Height="24" HorizontalAlignment="Left" Visibility="Collapsed" />
                                     <StackPanel Orientation="Horizontal" Spacing="12">
-                                        <Button Content="Get quote" IsEnabled="False" />
-                                        <Button Content="Review purchase" IsEnabled="False" />
+                                        <Button x:Name="GetQuoteButton" Content="Get quote" Click="OnGetQuote" AccessKey="Q" IsEnabled="False" />
+                                        <Button x:Name="CancelQuoteButton" Content="Cancel quote" Click="OnCancelQuote" IsEnabled="False" />
                                     </StackPanel>
+                                    <TextBlock x:Name="QuoteSummary" TextWrapping="Wrap" IsTextSelectionEnabled="True" Visibility="Collapsed" />
+                                    <TextBlock Text="Server quote; not purchased; terms may change. No money is reserved. Last-known status can change without notification." TextWrapping="Wrap" />
+                                    <Button Content="Review purchase" IsEnabled="False" />
                                 </StackPanel>
                                 <Border x:Name="RecentPanel" Grid.Row="1" Padding="16" CornerRadius="8" VerticalAlignment="Top"
                                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                                     <StackPanel Spacing="12">
-                                        <TextBlock Text="Recent tickets (mock)" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                        <TextBlock Text="MOCK — no real tickets" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
                                         <TextBlock Text="{x:Bind app:PreviewPresentation.PrintSummary(app:MockPrintState.Pending)}" TextWrapping="Wrap" />
                                         <TextBlock Text="{x:Bind app:PreviewPresentation.PrintSummary(app:MockPrintState.Dispatched)}" TextWrapping="Wrap" />
                                         <TextBlock Text="{x:Bind app:PreviewPresentation.PrintSummary(app:MockPrintState.Failed)}" TextWrapping="Wrap" />
@@ -164,7 +163,7 @@
                             </StackPanel>
                             <Button x:Name="SignOutButton" Content="Sign out / switch operator" Click="OnSignOut" />
                             <TextBlock x:Name="PingDetails" TextWrapping="Wrap" />
-                            <ComboBox x:Name="KnownEvents" Header="Known event UUID (selection, not a grant)" HorizontalAlignment="Stretch" />
+                            <ComboBox x:Name="KnownEvents" SelectionChanged="OnKnownEventChanged" Header="Known event UUID (selection, not a grant)" HorizontalAlignment="Stretch" />
                             <Button x:Name="ReadButton" Content="Read / refresh event" Click="OnReadEvent" />
                             <TextBlock x:Name="EventDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                             <ComboBox Header="Appearance" SelectedIndex="0" SelectionChanged="OnThemeChanged" AutomationProperties.Name="Appearance">

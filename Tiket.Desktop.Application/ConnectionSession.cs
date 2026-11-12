@@ -1,4 +1,5 @@
 ﻿using Grpc.Core;
+using Pl.Umamusume.Tiket.Api.V1;
 
 namespace Tiket.Desktop.Application;
 
@@ -19,6 +20,7 @@ public sealed class ConnectionSession : IDisposable
     public EventOverview? Overview { get; private set; }
     public string? PingStatus { get; private set; }
     public bool Busy { get; private set; }
+    public CashierComposer Composer { get; } = new();
     public event Action? Changed;
 
     public ConnectionSession(INativeLogin? login = null, Func<ConnectionProfile, IReadOnlyBackend>? backendFactory = null)
@@ -37,6 +39,7 @@ public sealed class ConnectionSession : IDisposable
 
     private void Clear()
     {
+        Composer.SetContext(null, null);
         generation++;
         lifetime.Cancel();
         lifetime.Dispose();
@@ -107,11 +110,36 @@ public sealed class ConnectionSession : IDisposable
     {
         CheckExpiry();
         if (Profile is null || material is null || Busy || !Profile.KnownEvents.Contains(day)) return;
+        Composer.SetContext(null, null);
         Overview = null;
         State = ConnectionState.Connecting;
         var credential = material.AccessToken;
         await ExecuteAsync(async (service, token) => (object)await service.ReadAsync(day, credential, token), true);
     }
+
+
+    public Task QuoteAsync() => Composer.QuoteAsync(async (request, cancellation) =>
+    {
+        CheckExpiry();
+        if (Profile is null || material is null || Overview is null || Busy || disposed ||
+            request.RaceDayId != Overview.Day.Definition.RaceDayId ||
+            !Overview.Races.Races.Any(r => r.Definition.RaceId == request.RaceId))
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ""));
+        var current = generation;
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, lifetime.Token);
+        try
+        {
+            backend ??= backendFactory(Profile);
+            var result = await backend.QuoteAsync(request, material.AccessToken, linked.Token);
+            CheckExpiry();
+            if (current != generation || linked.IsCancellationRequested) throw new OperationCanceledException();
+            return result;
+        }
+        catch (RpcException e) when (e.StatusCode == StatusCode.Unauthenticated && current == generation)
+        {
+            Clear(); State = ConnectionState.Expired; Changed?.Invoke(); throw;
+        }
+    });
 
     private async Task ExecuteAsync(Func<IReadOnlyBackend, CancellationToken, Task<object>> operation, bool secured)
     {

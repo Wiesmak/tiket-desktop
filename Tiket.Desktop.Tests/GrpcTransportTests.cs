@@ -77,8 +77,51 @@ public class GrpcTransportTests
         Assert.Empty(other.Calls);
     }
 
+    [Fact] public async Task QuoteUsesExactMethodPayloadAndAuthoritativeResponse()
+    {
+        await using var fixture = await GrpcFixture.Start();
+        using var backend = new ReadOnlyBackend(ConnectionTests.Profile(fixture.Address, development: true));
+        using var editor = QuoteTests.Editor();
+        editor.Edit(editor.Draft with { Units = "9007199254740993" });
+        var request = editor.Request();
+        var reply = await backend.QuoteAsync(request, "access-only", CancellationToken.None);
+        Assert.Equal("/pl.umamusume.tiket.api.v1.BettingService/QuoteCoupon", fixture.QuotePath);
+        Assert.Equal(request.ToByteArray(), fixture.QuoteRequest!.ToByteArray());
+        Assert.Equal(QuoteTests.Reply(), reply);
+        Assert.Equal(new[] { "Bearer access-only" }, fixture.Calls.Single().Auth);
+        Assert.Equal("HTTP/2", fixture.Calls.Single().Protocol);
+        Assert.NotEmpty(fixture.Calls.Single().Timeout);
+    }
+    [Theory]
+    [InlineData(StatusCode.Unauthenticated)] [InlineData(StatusCode.PermissionDenied)]
+    [InlineData(StatusCode.InvalidArgument)] [InlineData(StatusCode.FailedPrecondition)]
+    [InlineData(StatusCode.ResourceExhausted)] [InlineData(StatusCode.NotFound)]
+    [InlineData(StatusCode.Unavailable)] [InlineData(StatusCode.DeadlineExceeded)] [InlineData(StatusCode.Cancelled)]
+    public async Task QuoteTrailersMapDistinctly(StatusCode code)
+    {
+        await using var fixture = await GrpcFixture.Start(code);
+        using var backend = new ReadOnlyBackend(ConnectionTests.Profile(fixture.Address, development: true));
+        using var editor = QuoteTests.Editor();
+        await editor.QuoteAsync((r,ct)=>backend.QuoteAsync(r,"access-only",ct));
+        Assert.Equal(CashierComposer.Map(code),editor.State);
+        Assert.Null(editor.Response);
+    }
+    [Theory] [InlineData(true)] [InlineData(false)]
+    public async Task QuoteCancellationAndDeadline(bool cancel)
+    {
+        await using var fixture = await GrpcFixture.Start(delay:true);
+        using var backend = new ReadOnlyBackend(ConnectionTests.Profile(fixture.Address, development:true), cancel ? TimeSpan.FromSeconds(5) : TimeSpan.FromMilliseconds(150));
+        using var ct = new CancellationTokenSource();
+        if(cancel) ct.CancelAfter(150);
+        using var editor = QuoteTests.Editor();
+        var error=await Assert.ThrowsAsync<RpcException>(()=>backend.QuoteAsync(editor.Request(),"access-only",ct.Token));
+        Assert.Equal(cancel ? StatusCode.Cancelled : StatusCode.DeadlineExceeded,error.StatusCode);
+    }
+
     private sealed class GrpcFixture(WebApplication app) : IAsyncDisposable
     {
+        public string? QuotePath;
+        public QuoteCouponRequest? QuoteRequest;
         public string Address => app.Urls.Single();
         public List<(string[] Auth, string Timeout, string Protocol)> Calls = [];
         public static async Task<GrpcFixture> Start(StatusCode? error = null, bool delay = false, string? redirect = null)
@@ -106,6 +149,12 @@ public class GrpcTransportTests
                 var method = context.Request.Path.Value!.Split('/').Last();
                 IMessage result;
                 if (method == "Ping") result = new PingResponse { Status = "OK", ApiVersion = "v1-fixture" };
+                else if (method == "QuoteCoupon")
+                {
+                    fixture.QuotePath = context.Request.Path;
+                    fixture.QuoteRequest = QuoteCouponRequest.Parser.ParseFrom(wire.AsSpan(5));
+                    result = QuoteTests.Reply();
+                }
                 else
                 {
                     var query = method == "GetRace" ? RaceQuery.Parser.ParseFrom(wire.AsSpan(5)).RaceDayId : DayQuery.Parser.ParseFrom(wire.AsSpan(5)).RaceDayId;

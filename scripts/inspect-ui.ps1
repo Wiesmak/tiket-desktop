@@ -86,7 +86,7 @@ if ($Destination -eq 'Administration') {
 }
 if ($KeyboardSmoke -and $Destination -eq 'Cashier') {
     $player = $window.FindFirst([Windows.Automation.TreeScope]::Descendants,
-        [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::AutomationIdProperty,'DemoPlayer'))
+        [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::AutomationIdProperty,'QuoteUnits'))
     $player.SetFocus()
     $keys = New-Object -ComObject WScript.Shell
     foreach ($key in @('{TAB}','{TAB}','{TAB}','{TAB}')) {
