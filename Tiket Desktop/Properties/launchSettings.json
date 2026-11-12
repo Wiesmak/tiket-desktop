@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Tiket Desktop (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Tiket Desktop (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
