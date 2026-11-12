@@ -1,6 +1,6 @@
 ﻿# Tiket Desktop
 
-Phase 0 native Windows shell in the existing Rider solution. Cashier, Administration and Settings show fictional, unconnected previews. Inputs are temporary UI examples. Quote, purchase, event creation and connect are disabled. No login, financial mutations, persistence, printer access or backend traffic occurs.
+Phase 1 responsive native Windows shell in the existing Rider solution. Cashier, Administration and Settings show fictional, unconnected previews. A latest mock status remains above the cashier editor; administration has five distinct local preview steps. Inputs and appearance are session-only. Quote, purchase, event creation and connect are disabled. No login, financial mutations, persistence, printer access or backend traffic occurs.
 
 ## Build and run
 
@@ -41,7 +41,7 @@ The three Windows package pins predate Phase 0 and are preserved. All restored a
 
 Four exact upstream protobuf files are committed under `contracts/upstream`, at backend SHA `d840ab12a08b06304b5e4d26568ba33e98a65ddc`. [Snapshot manifest](contracts/snapshot.json) records SHA-256 digests and generator versions. Builds use only local contracts after restore; generated client-only C# stays in obj. Run `powershell -NoProfile -File scripts/check-contracts.ps1 -Upstream` to compare upstream without replacing files.
 
-Read [architecture](docs/ARCHITECTURE.md), [UX](docs/UX_SPEC.md), [security](docs/IDENTITY_AND_SECURITY.md), [contract gaps](docs/BACKEND_CONTRACT_GAPS.md), [decisions](docs/DECISIONS.md), [roadmap](docs/ROADMAP.md) and [local validation](docs/VALIDATION.md).
+Read [architecture](docs/ARCHITECTURE.md), [UX](docs/UX_SPEC.md), [security](docs/IDENTITY_AND_SECURITY.md), [contract gaps](docs/BACKEND_CONTRACT_GAPS.md), [decisions](docs/DECISIONS.md), [roadmap](docs/ROADMAP.md), [historical Phase 0 validation](docs/VALIDATION.md) and [Phase 1 evidence](docs/VALIDATION_PHASE_1.md). Workspace columns start at 900 available effective pixels; content is capped at 1200. Narrow views stack secondary content, preserving the latest mock summary above the cashier editor.
 Backend [API](https://github.com/Wiesmak/tiket/blob/d840ab12a08b06304b5e4d26568ba33e98a65ddc/docs/api/overview.md), [permissions](https://github.com/Wiesmak/tiket/blob/d840ab12a08b06304b5e4d26568ba33e98a65ddc/docs/api/authentication.md) and [replay](https://github.com/Wiesmak/tiket/blob/d840ab12a08b06304b5e4d26568ba33e98a65ddc/docs/api/errors-and-idempotency.md) remain authoritative.
 
 Design follows [Windows guidance](https://learn.microsoft.com/en-us/windows/apps/design/), [NavigationView](https://learn.microsoft.com/en-us/windows/apps/design/controls/navigationview) and [keyboard accessibility](https://learn.microsoft.com/en-us/windows/apps/design/accessibility/keyboard-accessibility). CI builds/tests on Windows x64; it does not sign, release, authenticate or drive hardware. Local UI tests remain required.
