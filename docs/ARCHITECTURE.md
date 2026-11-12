@@ -1,10 +1,12 @@
-﻿# Architecture — Phase 0
+﻿# Architecture — Phase 1
 
 Adapted from the owner's 2026-11-12 architecture starter ZIP after reading all six design documents and both conceptual wireframes. Those are design references, not evidence of a working product. Historical .NET 10, Visual Studio template creation, absent repository and empty main-branch assumptions are superseded by this existing .NET 11 / Rider / master checkout.
 
 The preserved WinUI UI project owns App, MainWindow, native TitleBar, MicaBackdrop, RootFrame and MainPage. MainPage hosts NavigationView and temporary mock controls. No UI event dispatches RPCs. Tiket.Desktop.Application contains only navigation/presentation state and endpoint validation, without WinUI or protobuf dependencies. Tiket.Desktop.Contracts isolates generated C# messages and client stubs for all eight services / 37 unary RPCs. Tiket.Desktop.Tests tests these boundaries without a WinUI window. There are no empty infrastructure/domain assemblies, service container or financial engine.
 
 The backend alone owns money, race lifecycle, authoritative pricing/versions, settlement and print dispatch. Desktop must never connect directly to PostgreSQL, serial ports or a competing print queue. Future gRPC adapters will map generated types into application state and reuse bounded HTTP/2 channels, deadlines and cancellation. Backend traffic uses validated TLS; explicit development plaintext is limited to 127.0.0.1. Schema availability is not authorization.
+
+Phase 1 adds pure PreviewPresentation policy (effective-width layout, fictional print labels and builder descriptions) and a typed session-only AppearanceState to Application. No new dependencies or persistence are needed. MainPage retains native controls in place; navigation, step changes and theme changes never recreate the workspace. Code-behind handles WinUI visibility, navigation/focus, theme integration and selection of XAML layout states using measured workspace width. The 900-pixel content threshold and primary-column caps are documented in UX_SPEC.md; the corrective pass removes the global cap and shares the title/content container.
 
 Future mutations require a durable encrypted exact-request journal before sending. Store serialized method/request, original IDs and idempotency key, profile/event/POS/subject binding, and PREPARED/SENDING/UNKNOWN/ACKED/rejected state. Timeout or cancellation after sending means unknown outcome, never proof of failure. Reconcile by identical request/key under the same subject; do not allocate another coupon. This journal is deferred, not implemented.
 

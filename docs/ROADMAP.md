@@ -1,11 +1,11 @@
 ﻿# Roadmap
 
-Adapted from the inception roadmap for the existing .NET 11 / Rider solution. Each phase needs a separate review and explicit scope; this work does not start Phase 1.
+Adapted from the inception roadmap for the existing .NET 11 / Rider solution. Each phase needs a separate review and explicit scope. Phase 1 is implemented for review; Phase 2 has not started.
 
 | Phase | Deliverable / exit gate |
 | --- | --- |
 | 0 | Preserved native shell, mock cashier/admin, pinned contracts/clients, Windows builds/tests, documented UI evidence and remaining acceptance gaps |
-| 1 | Harden responsive shell, focus/keyboard/Narrator/high-contrast validation, representative mock states and UI automation |
+| 1 | Responsive shell, visible latest mock status, distinct local builder steps, keyboard/focus/theme checks and Windows CI; full accessibility certification deferred to Phase 8 |
 | 2 | Managed HTTPS/OIDC browser PKCE with compatible access tokens, role/resource handling, Ping and authorized known-event reads |
 | 3 | Full read-only cashier composer and authoritative server quotes, stale quote invalidation, integer inputs |
 | 4 | Durable encrypted exact purchase intent, unknown-outcome recovery, local recent tickets and backend print status/reprint; controlled cashier pilot only after failure tests |
