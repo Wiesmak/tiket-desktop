@@ -1,0 +1,21 @@
+﻿{
+  "Version": 1,
+  "Profiles": [
+    {
+      "Id": "example-staging",
+      "DisplayName": "Example staging (fictional)",
+      "Backend": "https://grpc.example.invalid:9443",
+      "Issuer": "https://identity.example.invalid",
+      "ClientId": "tiket-desktop-native",
+      "ApiAudience": "tiket-api",
+      "Scopes": [
+        "openid",
+        "tiket.read"
+      ],
+      "KnownEvents": [
+        "46fa1b57-bb05-42a7-a866-46dabbe47784"
+      ],
+      "DevelopmentLoopback": false
+    }
+  ]
+}

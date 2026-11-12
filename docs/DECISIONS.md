@@ -23,3 +23,12 @@
 15. Supersedes decisions 9–10: move the 28/36 native title into the same uncapped workspace as status and content. Use 24/12 horizontal gutters and a separate native minimal-menu band; retain the 900-content-pixel breakpoint, use 24-pixel column spacing and cap only primary columns (cashier 680, builder 760). No fake content fills the remaining vertical space.
 16. Guard initial navigation with IsLoaded before overlay dismissal. Pre-layout DisplayMode is not a reliable reason to close a default pane. Preserve native Auto thresholds, manual wide collapse across resize cycles; an uncollapsed Auto pane expands again on returning wide. No persistent preference or per-resize forced opening.
 17. Owner rejected the earlier visual composition despite green CI. Historical validation below the original head is retained; corrected screenshots require owner review before merge.
+
+## Phase 2 decisions — 2026-11-12
+
+18. Keep the existing projects; the small connection service boundary lives in Application with generated Contracts rather than adding an empty infrastructure layer.
+19. Use Duende.IdentityModel.OidcClient 7.1.1 (Apache-2.0). Its explicit IIdentityTokenValidator adapter delegates cryptographic JWT validation to Microsoft.IdentityModel.JsonWebTokens 8.23.0 (MIT); no hand-written signature implementation. Require signed identity, exact issuer/client audience/lifetime and nonce/azp bindings.
+20. Use exclusive ephemeral 127.0.0.1 TCP callback with a fixed /oidc/callback path, avoiding HTTP.sys ACLs. Fixed-port-only providers/custom schemes are unsupported, with no fallback. Require advertised Code/S256 metadata.
+21. Machine-managed versioned JSON, explicit selection, no persistent active-profile preference or tokens. No offline_access, refresh or global provider logout this phase. Local sign-out cancels/disposes immediately and invalidates all private read data.
+22. Reuse one channel per active lifetime, ten-second per-call deadlines, no redirect/retry, access-token metadata only on four allowlisted reads (Ping anonymous; GetRaceDay, ListRaces, GetRace). First-race detail is one explicit refresh call; no polling.
+23. Synthetic signed OIDC protocol handler and actual local HTTP/2 gRPC wire tests are distinct from packaged or production compatibility. Owner confirmed no external environment is available; acceptance limitations remain explicit.

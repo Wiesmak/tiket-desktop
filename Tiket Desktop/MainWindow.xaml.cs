@@ -23,6 +23,7 @@ namespace Tiket_Desktop
 
             // Navigate the root frame to the main page on startup.
             RootFrame.Navigate(typeof(MainPage));
+            Closed += (_, _) => (RootFrame.Content as MainPage)?.CloseConnection();
         }
     }
 }

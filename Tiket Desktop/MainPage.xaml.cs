@@ -19,6 +19,7 @@ public sealed partial class MainPage : Page
         InitializeComponent();
         OnBuilderStepChanged(this, null!);
         Navigation.SelectedItem = CashierItem;
+        InitializeConnection();
     }
 
     // Only measure the view here. All layout setters live in XAML, using the
