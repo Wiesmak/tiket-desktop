@@ -43,6 +43,13 @@ public sealed class CashierComposer : IDisposable
         day = newDay?.Clone(); race = newRace?.Clone();
         Invalidate();
     }
+    public void SynchronizeContext(RaceDayInformation? newDay, RaceInformation? newRace)
+    {
+        if (Equals(day, newDay) && Equals(race, newRace)) return;
+        var wasQuoted = response is not null;
+        SetContext(newDay, newRace);
+        if (wasQuoted) { State = QuoteState.Stale; Message = "Race changed — check selection and get a new quote."; Changed?.Invoke(); }
+    }
     public void Edit(QuoteDraft draft) { Draft = draft; Invalidate(); }
     public void Cancel() { Invalidate(); State = QuoteState.Cancelled; Message = "Quote cancelled."; Changed?.Invoke(); }
     private void Invalidate()
@@ -50,7 +57,7 @@ public sealed class CashierComposer : IDisposable
         revision++;
         pending?.Cancel(); pending?.Dispose(); pending = null;
         response = null; QuotedAt = null;
-        Message = Validation() ?? "Ready to request a non-binding server quote.";
+        Message = Validation() ?? "Ready for quote.";
         State = Validation() is null ? QuoteState.Editing : QuoteState.Invalid;
         Changed?.Invoke();
     }
@@ -59,7 +66,7 @@ public sealed class CashierComposer : IDisposable
         if (day?.Definition is null || race?.Definition is null || day.Status is null || race.Status is null)
             return "Select an authorized server race in Settings.";
         if (day.Status.Phase != DayPhase.Running || race.Status.Phase != RacePhase.BettingOpen)
-            return "Quotation requires a RUNNING day and BETTING_OPEN race. Refresh server status in Settings.";
+            return day.Status.Phase != DayPhase.Running ? "Day is not running." : "Betting is not open.";
         if (!Guid.TryParse(day.Definition.RaceDayId, out _) || !Guid.TryParse(race.Definition.RaceId, out _))
             return "Server context is incomplete.";
         int arity = Arity(Draft.Pool);
@@ -112,7 +119,7 @@ public sealed class CashierComposer : IDisposable
             var result = await send(request, token);
             if (current != revision || token.IsCancellationRequested) return;
             response = result.Clone(); QuotedAt = DateTimeOffset.Now; State = QuoteState.Quoted;
-            Message = "Server quote; not purchased; terms may change. No funds reserved.";
+            Message = "Ready for review.";
         }
         catch (RpcException e) { if (current == revision) { State = Map(e.StatusCode); Message = ErrorMessage(State); } }
         catch (OperationCanceledException) { if (current == revision) { State = QuoteState.Cancelled; Message = ErrorMessage(State); } }
@@ -126,7 +133,7 @@ public sealed class CashierComposer : IDisposable
         StatusCode.Unavailable or StatusCode.DeadlineExceeded => QuoteState.Offline, StatusCode.Cancelled => QuoteState.Cancelled, _ => QuoteState.Error };
     public static string ErrorMessage(QuoteState state) => state switch {
         QuoteState.Expired => "Session expired. Sign in again.", QuoteState.Denied => "Quotation denied. Check server role and event grants.",
-        QuoteState.Invalid => "Server rejected the selection or units.", QuoteState.Stale => "Betting status or eligibility changed. Refresh the event.",
+        QuoteState.Invalid => "Server rejected the selection or units.", QuoteState.Stale => "Race changed — check selection and get a new quote.",
         QuoteState.Limited => "Server combination or request limit reached. Reduce selection or try later.",
         QuoteState.UnknownEvent => "Authorized event or race not found.", QuoteState.Offline => "Network unavailable or deadline exceeded.",
         QuoteState.Cancelled => "Quote cancelled.", _ => "Quotation failed. No wager was placed." };

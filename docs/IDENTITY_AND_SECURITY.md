@@ -1,5 +1,17 @@
 ﻿# Identity and security boundaries
 
+## Current Phase 5 authorization and storage
+
+AdministrationGrants validates the signed RS256 API JWT issuer/audience/lifetime and equality with the signed ID-token subject. EVENT_ADMIN does not require CASHIER, POS or cashier identifier. Enrollment/funding require CASHIER and exact event/player grants, even for a combined AUDITOR. Account/enrollment reads follow scoped auditor/cashier permissions; ListPlayers is AUDITOR-only. Server authorization remains final. Create still requires the exact new event grant and managed selector.
+
+Encrypted drafts bind profile/backend/issuer/client/subject/event; administrative records retain exact method/payload/key/expected versions. No bearer, password or refresh material is saved. Protected fixed-storage ACLs, writer locks, encrypted pending snapshots and durable replacement fail closed. Wrong-subject records are neither disclosed nor replayed. Actor/event switches cancel work, retain original durable outcomes and suppress stale display callbacks.
+
+The explicitly owner-approved disposable ADMIN_EDIT change and old attribute/profile backups are recorded in VALIDATION_PHASE_5.md and the ignored handoff. No roles, sub mapper, profile scope, signing keys, TLS trust or PKCE were weakened. Keep new scopes/selectors while their durable records require recovery. DPAPI remains per Windows user, not cryptographic isolation between OIDC cashiers sharing one Windows login.
+
+---
+
+Historical notes below are preserved. The current Phase 5 section above governs conflicting status.
+
 ## Current Phase 4
 
 Purchases require a separately validated RS256 API access token whose subject equals the signed OIDC ID-token subject, and exact CASHIER/event/player/POS/cashier claims. `sub` is never inferred from a label or used as `tiket_cashier`. Local choice is not a grant. The native browser request uses Code/PKCE, randomized loopback callback and an explicit login prompt; local sign-out preserves browser SSO, which may need provider-side sign-out before a different account is selected. No password grant or fixture credential exists in shipping code.

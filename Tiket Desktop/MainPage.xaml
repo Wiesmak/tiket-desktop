@@ -42,9 +42,8 @@
                                 SizeChanged="OnWorkspaceSizeChanged">
                         <TextBlock x:Name="WorkspaceHeading" Text="Cashier" IsTabStop="True"
                                    Style="{ThemeResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1" />
-                        <InfoBar IsOpen="True" IsClosable="False" Severity="Informational"
 
-                                 Message="Purchases debit the backend account after review. Uncertain outcomes require original-intent recovery. Print dispatch does not confirm paper delivery." />
+                            <ComboBox x:Name="KnownEvents" SelectionChanged="OnKnownEventChanged" Header="Event" HorizontalAlignment="Stretch" />
                         <StackPanel x:Name="CashierPanel" Spacing="8"><TextBlock x:Name="CashierLiveContext" Visibility="Collapsed" TextWrapping="Wrap" />
                             <TextBlock x:Name="CashierQuotationHeading" Text="Cashier quotation · disconnected" Style="{ThemeResource BodyStrongTextBlockStyle}" />
                             <TextBlock x:Name="PurchaseFeedback" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
@@ -71,9 +70,10 @@
                                         <Button x:Name="CancelQuoteButton" Content="Cancel quote" Click="OnCancelQuote" IsEnabled="False" />
                                     </StackPanel>
                                     <TextBlock x:Name="QuoteSummary" TextWrapping="Wrap" IsTextSelectionEnabled="True" Visibility="Collapsed" />
-                                    <TextBlock Text="Server quote; not purchased; terms may change. No money is reserved. Last-known status can change without notification." TextWrapping="Wrap" />
-                                    <TextBox x:Name="PurchasePlayer" Header="Authorized player UUID (no name directory)" MaxLength="36" />
-                                    <ComboBox x:Name="PurchasePos" Header="POS from verified token grants" HorizontalAlignment="Stretch" SelectionChanged="OnPurchasePosChanged" />
+                                    <Expander x:Name="QuoteDetailsExpander" Header="Quote details" Visibility="Collapsed" HorizontalAlignment="Stretch"><TextBlock x:Name="QuoteDetails" TextWrapping="Wrap" /></Expander>
+                                    <TextBox x:Name="PurchasePlayer" Header="Player UUID" MaxLength="36" TextChanged="OnCashierPlayerChanged" />
+                                    <TextBlock x:Name="CashierAccountStatus" TextWrapping="Wrap" />
+                                    <ComboBox x:Name="PurchasePos" Header="Point of sale" HorizontalAlignment="Stretch" SelectionChanged="OnPurchasePosChanged" />
                                     <TextBlock x:Name="PurchaseContext" TextWrapping="Wrap" />
                                     <Button x:Name="ReviewPurchaseButton" Content="Review purchase" Click="OnReviewPurchase" IsEnabled="False" />
                                 </StackPanel>
@@ -81,8 +81,7 @@
                                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                                     <StackPanel Spacing="12">
-                                        <TextBlock Text="LIVE · locally journal-known history" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
-                                        <Button Content="Refresh locally known history" Click="OnRefreshPurchaseHistory" />
+                                        <TextBlock Text="Recent transactions" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
                                         <StackPanel x:Name="LivePurchaseHistory" Spacing="12" />
                                     </StackPanel>
                                 </Border>
@@ -95,77 +94,113 @@
                                     <ColumnDefinition x:Name="AdminSecondary" Width="0" />
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                <StackPanel Spacing="12">
-                                    <InfoBar IsOpen="True" IsClosable="False" Severity="Warning"
-                                             Title="Server DRAFT is immutable"
-                                             Message="Edit locally until submission. CreateRaceDay submits the complete definition once, even in DRAFT." />
-                                    <ComboBox x:Name="BuilderStep" Header="Builder step (mock only)" SelectedIndex="0"
+                                <StackPanel x:Name="LocalPlanEditor" Spacing="12">
+                                    <TextBlock x:Name="LocalPlanStatus" Text="Local plan" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="CreatedDefinitionSummary" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="PlanValidation" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button x:Name="SavePlanButton" Content="Save plan" Click="OnSavePlan" />
+                                        <Button x:Name="ResumePlanButton" Content="Resume" Click="OnResumePlan" />
+                                        <Button x:Name="DiscardPlanButton" Content="Discard" Click="OnDiscardPlan" />
+                                    </StackPanel>
+                                    <StackPanel x:Name="EditablePlanFields" Spacing="12">
+                                    <ComboBox x:Name="BuilderStep" Header="Local plan step" SelectedIndex="0"
                                               SelectionChanged="OnBuilderStepChanged" AutomationProperties.Name="Local race-day builder step" HorizontalAlignment="Stretch">
                                         <x:String>1 · Basics</x:String><x:String>2 · Races</x:String><x:String>3 · Runners</x:String>
                                         <x:String>4 · Pool rules</x:String><x:String>5 · Review</x:String>
                                     </ComboBox>
                                     <TextBlock x:Name="StepDescription" TextWrapping="Wrap" />
                                     <StackPanel x:Name="BasicsStep" Spacing="12">
-                                        <TextBox Header="Event name (temporary demo input)" Text="Sample race day" />
-                                        <TextBlock Text="Fictional date: 2026-11-12 · Time zone: Europe/Warsaw · Currency: PLN. No real definition exists." TextWrapping="Wrap" />
+                                        <TextBox x:Name="PlanDay" Header="Provisioned event UUID" IsReadOnly="True" />
+                                        <TextBox x:Name="PlanDate" Header="Event date (yyyy-MM-dd)" />
+                                        <TextBox x:Name="PlanNumber" Header="Day display number (1–999)" InputScope="Number" Text="1" />
+                                        <TextBox x:Name="PlanCurrency" Header="ISO currency" Text="PLN" MaxLength="3" />
+                                        <TextBox x:Name="PlanZone" Header="IANA time zone" Text="Europe/Warsaw" />
+                                        <TextBox x:Name="PlanRules" Header="Rules version" Text="1" />
+                                        <TextBox x:Name="PlanLegs" Header="Maximum coupon legs" Text="10000" InputScope="Number" />
+                                        <TextBox x:Name="PlanOpen" Header="Maximum concurrent open races" Text="1" InputScope="Number" />
+                                        <TextBlock Text="No-winner policy: House retains pool" TextWrapping="Wrap" />
                                     </StackPanel>
                                     <StackPanel x:Name="RacesStep" Spacing="12" Visibility="Collapsed">
-                                        <TextBox Header="Race title (temporary demo input)" Text="Sample sprint" />
-                                        <TextBlock Text="Mock order: 01 · Sample sprint. No race is created or scheduled." TextWrapping="Wrap" />
+                                        <ComboBox x:Name="PlanRace" Header="Ordered races" HorizontalAlignment="Stretch" SelectionChanged="OnPlanRaceChanged" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button Content="Add race" Click="OnAddPlanRace" />
+                                            <Button Content="Remove" Click="OnRemovePlanRace" />
+                                            <Button Content="Move up" Click="OnMovePlanRaceUp" />
+                                            <Button Content="Move down" Click="OnMovePlanRaceDown" />
+                                        </StackPanel>
+                                        <TextBox x:Name="PlanRaceId" Header="Race UUID" IsReadOnly="True" />
+                                        <TextBox x:Name="PlanRaceNumber" Header="Race number" TextChanged="OnPlanRaceFields" InputScope="Number" />
+                                        <TextBox x:Name="PlanRaceTitle" Header="Title" TextChanged="OnPlanRaceFields" />
+                                        <TextBox x:Name="PlanRaceCourse" Header="Course" TextChanged="OnPlanRaceFields" />
                                     </StackPanel>
                                     <StackPanel x:Name="RunnersStep" Spacing="12" Visibility="Collapsed">
-                                        <TextBlock Text="Roster preview · temporary text, never sent" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
-                                        <Grid ColumnSpacing="12" RowSpacing="8">
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                            <TextBox Header="Program" Text="02" AutomationProperties.Name="Runner A program number" />
-                                            <TextBox Grid.Column="1" Header="Runner name" Text="Runner A" AutomationProperties.Name="Runner A display name" />
-                                            <TextBox Grid.Row="1" Header="Program" Text="03" AutomationProperties.Name="Runner B program number" />
-                                            <TextBox Grid.Row="1" Grid.Column="1" Header="Runner name" Text="Runner B" AutomationProperties.Name="Runner B display name" />
-                                        </Grid>
+                                        <TextBlock x:Name="RosterRaceLabel" TextWrapping="Wrap" />
+                                        <Button Content="Add horse" Click="OnAddPlanHorse" />
+                                        <StackPanel x:Name="PlanRunners" Spacing="12" />
                                     </StackPanel>
                                     <StackPanel x:Name="PoolsStep" Spacing="12" Visibility="Collapsed">
-                                        <TextBlock Text="Mock pool catalogue: WIN · QUINELLA · EXACTA · TRIFECTA" TextWrapping="Wrap" />
-                                        <TextBlock Text="Configuration and stake limits are unavailable. This preview does not calculate combinations or prices." TextWrapping="Wrap" />
+                                        <TextBlock x:Name="PoolsRaceLabel" TextWrapping="Wrap" />
+                                        <StackPanel x:Name="PlanPools" Spacing="12" />
                                     </StackPanel>
                                     <StackPanel x:Name="ReviewStep" Spacing="12" Visibility="Collapsed">
-                                        <TextBlock Text="Review checklist preview" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                        <TextBlock Text="Confirm event basics, ordered races, string program numbers and server-compatible pool rules. Temporary inputs here do not form a validated definition." TextWrapping="Wrap" />
-                                        <Button Content="Create race day (unavailable)" IsEnabled="False" />
+                                        <Button x:Name="ReviewCreateButton" Content="Review and create day" Click="OnReviewCreateDay" />
+                                    </StackPanel>
                                     </StackPanel>
                                 </StackPanel>
                                 <Border x:Name="AdminSummary" Grid.Row="1" Padding="16" CornerRadius="8" VerticalAlignment="Top"
                                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                                     <StackPanel Spacing="12">
-                                        <TextBlock Text="Local preview summary" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
-                                        <TextBlock Text="Fictional fixture: 1 race · 2 runners · 4 pool types" TextWrapping="Wrap" />
-                                        <TextBlock Text="Validation: not performed. This summary describes the fixture, not the temporary inputs." TextWrapping="Wrap" />
-                                        <TextBlock Text="Inputs survive step changes in this session only. Nothing is saved, loaded, published or created." TextWrapping="Wrap" />
+                                        <TextBlock x:Name="AdminOperationStatus" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                                        <TextBlock x:Name="AdminDayState" TextWrapping="Wrap" />
+                                        <Button x:Name="PublishDayButton" Content="Publish day" Click="OnPublishDay" />
+                                        <Button x:Name="StartDayButton" Content="Start day" Click="OnStartDay" />
+                                        <ComboBox x:Name="ServerAdminRace" Header="Race" HorizontalAlignment="Stretch" SelectionChanged="OnAdminRaceChanged" />
+                                        <TextBlock x:Name="AdminRaceState" TextWrapping="Wrap" />
+                                        <Button x:Name="OpenRaceButton" Content="Open betting" Click="OnOpenRace" />
+                                        <Button x:Name="CloseRaceButton" Content="Close betting" Click="OnCloseRace" />
+                                        <Expander Header="Server definition" HorizontalAlignment="Stretch">
+                                            <TextBlock x:Name="ServerDefinition" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                        </Expander>
+                                        <TextBlock Text="Player enrollment and opening funding" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                        <TextBox x:Name="AdminPlayer" Header="Player UUID" MaxLength="36" TextChanged="OnAdminPlayerChanged" />
+                                        <TextBlock x:Name="AdminAccountStatus" TextWrapping="Wrap" />
+                                        <TextBox x:Name="OpeningPaid" Header="Paid units" Text="0" InputScope="Number" MaxLength="19" />
+                                        <TextBox x:Name="OpeningPromotional" Header="Promotional units" Text="0" InputScope="Number" MaxLength="19" />
+                                        <Button x:Name="EnrollPlayerButton" Content="Enroll player" Click="OnEnrollPlayer" />
+                                        <Button x:Name="AddFundingButton" Content="Add opening funding" Click="OnAddFunding" />
+                                        <Button x:Name="ListPlayersButton" Content="Show enrolled players" Click="OnListPlayers" />
+                                        <TextBlock x:Name="AdminPlayers" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                        <TextBlock Text="Recent commands" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <StackPanel x:Name="AdminCommands" Spacing="8" />
                                     </StackPanel>
                                 </Border>
                             </Grid>
                         </StackPanel>
                         <StackPanel x:Name="ConnectionPanel" Visibility="Collapsed" Spacing="12" MaxWidth="720" HorizontalAlignment="Left">
                             <ComboBox x:Name="Profiles" Header="Managed connection profile" HorizontalAlignment="Stretch" SelectionChanged="OnProfileChanged" />
-                            <TextBlock x:Name="ProfileDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                             <TextBlock x:Name="SessionStatus" TextWrapping="Wrap" />
-                            <TextBlock x:Name="OperatorStatus" TextWrapping="Wrap" />
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Button x:Name="PingButton" Content="Test API" Click="OnPing" />
                                 <Button x:Name="SignInButton" Content="Sign in with browser" Click="OnSignIn" />
                                 <Button x:Name="CancelButton" Content="Cancel" Click="OnCancelConnection" />
                             </StackPanel>
                             <Button x:Name="SignOutButton" Content="Sign out / switch operator" Click="OnSignOut" />
-                            <TextBlock x:Name="PingDetails" TextWrapping="Wrap" />
-                            <ComboBox x:Name="KnownEvents" SelectionChanged="OnKnownEventChanged" Header="Known event UUID (selection, not a grant)" HorizontalAlignment="Stretch" />
-                            <Button x:Name="ReadButton" Content="Read / refresh event" Click="OnReadEvent" />
-                            <TextBlock x:Name="EventDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+
+                            <Button x:Name="ReadButton" Content="Retry" Click="OnReadEvent" />
+                            <Expander Header="Diagnostics" HorizontalAlignment="Stretch">
+                                <StackPanel Spacing="8">
+                                    <TextBlock x:Name="ProfileDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                    <TextBlock x:Name="OperatorStatus" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="PingDetails" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="EventDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                </StackPanel>
+                            </Expander>
                             <ComboBox Header="Appearance" SelectedIndex="0" SelectionChanged="OnThemeChanged" AutomationProperties.Name="Appearance">
                                 <x:String>System</x:String><x:String>Light</x:String><x:String>Dark</x:String>
                             </ComboBox>
                             <TextBlock Text="Appearance lasts for this session. Restart follows the system theme." TextWrapping="Wrap" />
-                            <TextBlock Text="Purchase and reprint require verified cashier grants, durable local journal and explicit review." TextWrapping="Wrap" />
                         </StackPanel>
                     </StackPanel>
                 </Grid>

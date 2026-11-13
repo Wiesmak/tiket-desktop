@@ -1,5 +1,17 @@
 # Cashier quotation, purchase and recovery
 
+## Current Phase 5 operations
+
+Sign in under Settings and select the provisioned event using the shared selector. Event/race state loads automatically. Choose the race, pool, horses and integer units; Get quote remains explicit. Select the authorized player/POS and review before Purchase. The selected balance and current print state refresh automatically. An unchanged poll preserves the quote and selections; changed race terms require a new explicit quote.
+
+Receipts show compact purchase/reprint states; open Details for identifiers and historical acknowledgements. Reprint requires current-status inspection and one duplicate-output confirmation. An uncertain intent must be recovered with its original operator, connection and key; refresh never replays it. Retry appears for read failure, not as the normal cashier rhythm.
+
+Administration uses a complete local plan before one-shot creation. Save/Resume is encrypted and actor/event-bound. After creation, Inspect saved plan is read-only. Publish, enroll/fund before start, Start and race Open/Close have explicit reviews and backend version checks. AUDITOR-only player listing does not grant enrollment/funding scope.
+
+See VALIDATION_PHASE_5.md for actual executed tests. Historical notes below remain useful for protocol details; the current automatic-refresh and concise presentation above supersede older manual-refresh/mock descriptions.
+
+---
+
 In Settings, select a managed profile, sign in with the system browser, then read an authorized known event. Cashier lists only races and pools returned by that read. A day must be RUNNING and the race BETTING_OPEN. Refresh explicitly in Settings; there are no push updates or automatic re-quotes. Sign-in is not a quotation permission grant: the backend checks CASHIER/PLAYER and resource scope.
 
 Choose WIN (first finisher), QUINELLA (first two in either order), EXACTA (ordered first/second), or TRIFECTA (ordered first/second/third). Only configured pools are offered.

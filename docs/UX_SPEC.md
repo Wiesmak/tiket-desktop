@@ -1,5 +1,19 @@
 ﻿# Native shell UX
 
+## Current Phase 5 staff workflow
+
+The builder is functional: provisioned event selection; basics; ordered races with stable UUIDs; ordered horse rosters with string program labels; four integer-stake pool rules; encrypted Save/Resume/Discard; complete request/key review. Moving a race updates local race order/numbers while preserving IDs. Freeze locks the original request. Inspect saved plan is read-only after creation; it does not edit or replace server DRAFT.
+
+Lifecycle controls follow server phases/versions. Enrollment and opening funding require exact player scope, integer units and reviewed confirmation. Additional funding requires an enrolled, unwagered pre-start account. AUDITOR-only player listing and server account balances are distinct from local plans. There is no invented player-name directory or separate promotional wallet.
+
+Shared event selection, sign-in and operations schedule bounded automatic reads. Identical snapshots preserve draft/quote/focus; materially changed terms require explicit new quotation/review. Offline shows stale context; denial clears unauthorized data; Retry is exceptional. Current print state and compact receipts refresh automatically. Technical IDs/provenance are in Details/Diagnostics. Recovery/reprint have one short relevant warning.
+
+The native Mica/title/NavigationView shell, wide labeled navigation, 24/12 gutters, 900 effective-content breakpoint, input caps, keyboard access and reduced-motion behavior remain. The validation record distinguishes live editable Save/Resume from the created-plan read-only matrix; broader accessibility/deployment certification remains later work.
+
+---
+
+Historical notes below are preserved. The current Phase 5 section above governs conflicting status.
+
 ## Current Phase 4 cashier flow
 
 The native composer now leads to an explicit actual-debit review with profile/backend/issuer/client, player UUID, verified POS/cashier, server canonical selection, integer stake/currency and versions. Cancel is the default focused action. PREPARING, SENDING, ACKED and UNKNOWN remain distinct; replay explains that it can complete a purchase. Native controls ship enabled only when their quote, grant and storage prerequisites are met. No fixture identifiers are hardcoded into shipping business logic.

@@ -1,5 +1,19 @@
 ﻿# Phase 4 purchase journal and recovery
 
+## Current Phase 5 continuity and administration journal
+
+PurchaseJournal/v1 schema and exact replay bindings are unchanged. Native purchase/reprint remain enabled under verified grants, quote/review, journal durability and backend business preconditions. Historical Phase 4 records reopened successfully. Event cancellation now also suppresses old-context purchase callbacks without losing original durable outcome recording.
+
+AdministrationJournal/v1 is separate: administration.v1.dpapi, its own writer lock and encrypted durable snapshots. Records retain exact method/protobuf/key and profile/backend/issuer/client/subject/event. PREPARED and SENDING commit before dispatch. Lost replies/crash reopen UNKNOWN. Explicit recovery reuses original bytes/key/subject; exact response bytes commit before success.
+
+The optional Rejected marker records only a definitive rejection of the first transmission. An UNKNOWN replay rejection cannot disprove an earlier commit and remains UNKNOWN. A changed action/version requires fresh human review. Corruption, missing snapshot, unsupported schema, pending replacement, quota and persistence failure fail closed.
+
+LocalPlans/v1 is a separate encrypted, context-bound draft store. A frozen request/key cannot be overwritten/discarded as an editable plan. Server ACK/read-back does not make DRAFT editable. VALIDATION_PHASE_5.md records the real committed/suppressed-ACK/fresh-native-recovery proof and one-effect SQL verification. Fault injection is ignored lab tooling, never a shipping flag or automatic retry.
+
+---
+
+Historical notes below are preserved. The current Phase 5 section above governs conflicting status.
+
 `MutationJournal` and `JournaledMutation` support the native purchase/recovery/reprint controls through ConnectionSession. Controls require a verified access-token operating context, a reviewed server quote and protected local storage. Development acceptance remains incomplete; see VALIDATION_PHASE_4.md. Enabled software controls are not permission to test production funds.
 
 ConnectionSession uses `%LOCALAPPDATA%/Tiket Desktop/PurchaseJournal/v1` (subject to normal packaged-app path virtualization). It requires a local fixed drive and Windows ownership, creates a protected current-user ACL for a new directory, and rejects existing Allow entries for identities other than the current user, SYSTEM and Administrators. DPAPI protects the snapshot contents. Tests use unique temporary directories and never read ProgramData, Docker, credentials or the managed connection profile. Concurrent app instances fail closed on the directory writer lock.

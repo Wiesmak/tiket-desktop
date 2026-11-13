@@ -1,6 +1,6 @@
 ﻿# Tiket Desktop
 
-Phase 4 adds native reviewed purchases, encrypted exact-request journaling, uncertain-outcome recovery, subject-scoped local history and backend print monitoring/manual reprint. Controls require verified cashier grants and durable storage. The owner's disposable PostgreSQL lab has exercised real browser sign-in, quotes, purchases, committed/lost-response recovery and idempotent reprint. See [validation](docs/VALIDATION_PHASE_4.md), the [cashier guide](docs/CASHIER_QUOTES.md), [journal/recovery design](docs/SAFE_PURCHASE_JOURNAL.md) and [connection setup](docs/CONNECTION_AND_OIDC.md). This is development acceptance, not production or physical-paper readiness.
+Phase 5 adds a native multi-race local wizard, encrypted Save/Resume, immutable day creation, lifecycle controls and scoped enrollment/opening funding. Coordinated automatic reads keep cashier, account and print state current while preserving unchanged quotes. Phase 4 purchase/reprint/recovery stays enabled under normal verified grants and journal safety. Real disposable-lab creation, onboarding, one purchase/reprint and committed/lost-ACK/fresh-native recovery passed. See [Phase 5 validation](docs/VALIDATION_PHASE_5.md), [cashier guide](docs/CASHIER_QUOTES.md), [journal/recovery](docs/SAFE_PURCHASE_JOURNAL.md) and [connection setup](docs/CONNECTION_AND_OIDC.md). Signed distribution, physical paper and shared-workstation deployment remain separate work.
 
 ## Build and run
 

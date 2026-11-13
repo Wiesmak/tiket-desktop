@@ -126,6 +126,19 @@ public class ConnectionTests
         finally { File.Delete(path); }
     }
 
+    [Fact] public async Task ExplicitReadCannotReturnIntoAnotherEventContext()
+    {
+        var server = new LateBackend();
+        using var session = new ConnectionSession(new TestLogin(), _ => server);
+        session.Select(Profile()); await session.SignInAsync();
+        var pending = session.ReadAsync(Day);
+        session.SelectEvent(Guid.NewGuid());
+        server.Completion.SetResult(new EventOverview(new RaceDayInformation(), new RaceList(), DateTimeOffset.UtcNow));
+        await pending;
+        Assert.True(server.Cancelled.IsCancellationRequested);
+        Assert.Null(session.Overview);
+        Assert.Equal(ConnectionState.Connecting, session.State);
+    }
     private sealed class TestLogin : INativeLogin
     {
         public Task<LoginMaterial> SignInAsync(ConnectionProfile p, Action<ConnectionState> progress, CancellationToken ct) =>

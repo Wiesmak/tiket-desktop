@@ -1,5 +1,19 @@
 ﻿# Architecture
 
+## Current Phase 5 architecture
+
+The native shell and four-project solution are preserved. MainPage.Administration keeps view-only input state; LocalRaceDayPlan owns cloned definitions and frozen exact create requests. LocalPlanStore saves separately encrypted plans bound to profile/backend/issuer/client/subject/event, using protected fixed storage, an exclusive writer and durable replacement. Server definitions, including DRAFT, are read-only.
+
+ConnectionSession.Administration validates EVENT_ADMIN, CASHIER/player and AUDITOR independently. Reviewed requests are durably prepared before dispatch; outcomes are recorded for the original actor independently of UI lifetime. AdministrationJournal is separate from PurchaseJournal/v1. Only seven Phase 5 mutation methods are allowed. Explicit first-transmission rejection is terminal; an ambiguous outcome or rejected UNKNOWN replay requires original-key recovery.
+
+One RefreshCoordinator drives permitted day/race, selected account/enrollment and active print reads. Foreground cashier targets ten seconds, other visible contexts thirty, minimum separation two; deterministic coalescing and error backoff are bounded to 124 seconds including jitter. Context cancellation/generation suppression rejects late results; identical snapshots preserve controls, quote and focus. No refresh can purchase, reprint or recover.
+
+VALIDATION_PHASE_5.md records the real native wizard/onboarding/purchase/recovery sequence. Backend source/contracts and dependency/project identities are unchanged. Phase 6 is not started.
+
+---
+
+Historical notes below are preserved. The current Phase 5 section above governs conflicting status.
+
 ## Current Phase 4
 
 The four-project native WinUI solution and package identity are preserved. ConnectionSession owns memory-only credentials, generation/cancellation scopes, the composer and purchase workflow. OperatingGrants independently validates access-token RS256 signature, API audience, issuer, lifetime and equality with the signed ID-token subject; financial metadata comes from exact trusted event/player/POS/cashier claims. Backend authorization remains final.

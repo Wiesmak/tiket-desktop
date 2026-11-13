@@ -8,6 +8,7 @@ public sealed class LoginMaterial
     public string Subject { get; }
     internal string AccessToken { get; }
     public DateTimeOffset ExpiresAt { get; }
+    internal AdministrationGrants? AdministrationGrants { get; init; }
     internal OperatingGrants? OperatingGrants { get; init; }
     public LoginMaterial(string subject, string accessToken, DateTimeOffset expiresAt)
     {
@@ -105,8 +106,10 @@ public sealed class NativeOidcLogin : INativeLogin
         {
             var subject = result.User.FindFirst("sub")?.Value ?? "";
             var grants = await OperatingGrants.ValidateAsync(result.AccessToken, subject, profile, client.Options);
+            var administration = await AdministrationGrants.ValidateAsync(result.AccessToken, subject, profile, client.Options);
             var expiry = grants is not null && grants.ExpiresAt < result.AccessTokenExpiration ? grants.ExpiresAt : result.AccessTokenExpiration;
-            return new LoginMaterial(subject, result.AccessToken, expiry) { OperatingGrants = grants };
+            if (administration is not null && administration.ExpiresAt < expiry) expiry = administration.ExpiresAt;
+            return new LoginMaterial(subject, result.AccessToken, expiry) { OperatingGrants = grants, AdministrationGrants = administration };
         }
         catch (ArgumentException) { throw new SignInFailure(ConnectionState.ValidationError); }
     }

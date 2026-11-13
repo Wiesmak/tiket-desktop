@@ -35,6 +35,23 @@ public class OidcFlowTests
         }
     }
     [Theory]
+    [InlineData("access-eventadmin", true)] [InlineData("access-role", true)]
+    [InlineData("access-subject", false)] [InlineData("access-audience", false)]
+    [InlineData("access-issuer", false)] [InlineData("access-signature", false)]
+    public async Task AdministrativeRolesRequireSignedSameSubjectApiToken(string scenario, bool allowed)
+    {
+        using var issuer = new SyntheticIssuer(scenario);
+        var material = await new NativeOidcLogin(issuer.BrowserAsync, () => issuer)
+            .SignInAsync(ConnectionTests.Profile(), _ => {}, default);
+        Assert.Equal(allowed, material.AdministrationGrants is not null);
+        if (allowed)
+        {
+            Assert.Null(material.OperatingGrants);
+            Assert.Contains(scenario == "access-eventadmin" ? "EVENT_ADMIN" : "AUDITOR", material.AdministrationGrants!.Roles);
+            Assert.Contains(ConnectionTests.Day.ToString(), material.AdministrationGrants.Events);
+        }
+    }
+    [Theory]
     [InlineData("valid")]
     [InlineData("issuer")]
     [InlineData("audience")]
@@ -173,7 +190,7 @@ public class OidcFlowTests
                     Claims = new Dictionary<string, object>
                     {
                         ["sub"] = scenario == "access-subject" ? "other-subject" : "fixture-subject",
-                        ["tiket_roles"] = new[] { scenario == "access-role" ? "AUDITOR" : "CASHIER" },
+                        ["tiket_roles"] = new[] { scenario == "access-role" ? "AUDITOR" : scenario == "access-eventadmin" ? "EVENT_ADMIN" : "CASHIER" },
                         ["tiket_cashier"] = "fixture-cashier", ["tiket_events"] = new[] { ConnectionTests.Day.ToString() },
                         ["tiket_players"] = new[] { Guid.NewGuid().ToString() },
                         ["tiket_pos"] = new[] { scenario switch { "access-pos" => "invalid", "access-pos-leadingzero" => "07", "access-pos-sign" => "+7", _ => "7" } }

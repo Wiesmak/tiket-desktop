@@ -1,6 +1,6 @@
 ﻿# Roadmap
 
-Adapted for the existing .NET 11 / Rider solution. Phases 0–3 are merged. Phase 4 implements reviewed journal-first purchase/recovery and backend print/reprint, with real disposable-lab evidence in VALIDATION_PHASE_4.md. Distribution and any real shared-workstation pilot remain separate gates. Earlier phase-status sections below are historical.
+Adapted for the existing .NET 11 / Rider solution. Phases 0–4 are merged. Phase 4 implements reviewed journal-first purchase/recovery and backend print/reprint, with real disposable-lab evidence in VALIDATION_PHASE_4.md. Distribution and any real shared-workstation pilot remain separate gates. Earlier phase-status sections below are historical.
 
 | Phase | Deliverable / exit gate |
 | --- | --- |
@@ -24,3 +24,15 @@ Implemented profile/session/browser and read-only generated gRPC infrastructure 
 ## Phase 3 scope — 2026-11-12 (supersedes archival kickoff restriction)
 
 Owner authorized pure Phase 3 implementation/testing after Phase 2 PR #3 merge while carrying real-service gates forward. PR #3 merged at 98ffa6d4e58883129a7b352c9fb1c19077b9a594 with successful merge CI 43245964408. Phase 3 implements Normal/Wall/Box, all four pools, exact int64 units and cancellable server quotation. See VALIDATION_PHASE_3.md for review status and evidence. Real OIDC packaged smoke and real Tiket quote remain separately unverified. Phase 4 has not started; purchases and all financial/admin mutations remain disabled. Trusted real identity/backend acceptance and durable exact-intent recovery remain mandatory before Phase 4 operational acceptance.
+
+## Phase 5 delivery — 2026-11-13
+
+Functional native administration, encrypted local plans, immutable create, lifecycle/onboarding and coordinated cashier/account/print refresh are implemented and exercised against a newly provisioned disposable event. See VALIDATION_PHASE_5.md. PR #6 stays unmerged; final-head green CI and owner review govern delivery. Phase 6 is not started and must wait for Phase 5 merge/post-merge checks.
+
+## Phase 6 binding acceptance: settled winning coupons
+
+After SETTLED, an AUDITOR-authorized report must paginate ListRaceLegResolutions (page size at most 500), filter WON (never count REFUNDED as winnings), group by coupon and pool, and fetch each distinct GetCoupon under ACCOUNT authorization. Display winning coupon, player UUID, pool, stake on winning legs, payout by coupon and checked per-player aggregate winnings in exact server integer currency units. Keep whole-coupon purchase stake distinct from winning-leg stake. Show pool stake/dividend separately. Never infer payouts before settlement or calculate dividends locally.
+
+Use known settlement IDs from resolutions with GetSettlement to reconcile player/pool totals where possible. Handle no winners and empty resolutions. GetSettlement requires an exact settlement ID; an empty race may expose no discoverable ID. If needed, propose a separately reviewed bounded read-only GetRaceSettlement/ListWinningCoupons backend endpoint. There is no existing race-wide winner-report RPC or player-name directory.
+
+GetSettlement and ListRaceLegResolutions are AUDITOR-only. EVENT_ADMIN or CASHIER alone cannot view race-wide winners. Combined CASHIER/AUDITOR coupon reads can still enforce POS grants. Phase 6 acceptance tests must cover these restrictions, checked aggregation/overflow, pagination, zero winners, refunds, pre-SETTLED hiding and reconciliation. Broader cashier reporting requires a separately reviewed event/POS-scoped backend policy; no client bypass or invented roles.
