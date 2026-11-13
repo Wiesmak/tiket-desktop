@@ -290,6 +290,23 @@ public class GrpcTransportTests
                         _ => new PlayerList { Players = { new EnrollmentInformation { RaceDayId = day, PlayerId = player, Balance = 38, AccountVersion = 6 } } }
                     };
                 }
+                else if (method is "ScratchHorse" or "VoidRace" or "SubmitResult" or "VerifyResult" or "SettleRace")
+                {
+                    fixture.AdministrationPath = context.Request.Path;
+                    fixture.AdministrationRequest = wire.AsSpan(5).ToArray();
+                    result = Phase6Tests.Reply(context.Request.Path.Value!.TrimStart('/'), fixture.AdministrationRequest);
+                }
+                else if (method is "GetResult" or "GetSettlement" or "ListRaceLegResolutions" or "GetCoupon")
+                {
+                    fixture.AdministrationPath = context.Request.Path;
+                    fixture.AdministrationRequest = wire.AsSpan(5).ToArray();
+                    result = method switch {
+                        "GetResult" => new ResultAcknowledgement(),
+                        "GetSettlement" => new SettlementInformation(),
+                        "ListRaceLegResolutions" => new RaceLegResolutions(),
+                        _ => new CouponInformation()
+                    };
+                }
                 else if (method == "GetPrintStatus") result = new PrintStatus { PrintJobId = "fixture-job",
                     Type = PrintJobType.Original, Status = DispatchStatus.Dispatched };
                 else

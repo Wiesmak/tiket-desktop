@@ -160,6 +160,26 @@
                                         <TextBlock x:Name="AdminRaceState" TextWrapping="Wrap" />
                                         <Button x:Name="OpenRaceButton" Content="Open betting" Click="OnOpenRace" />
                                         <Button x:Name="CloseRaceButton" Content="Close betting" Click="OnCloseRace" />
+                                        <StackPanel x:Name="RaceResultsPanel" Spacing="8">
+                                            <TextBlock Text="Race operations &amp; results" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                            <ComboBox x:Name="ScratchRunner" Header="Horse to scratch" HorizontalAlignment="Stretch" />
+                                            <Button x:Name="ScratchButton" Content="Scratch horse" Click="OnScratchHorse" />
+                                            <Button x:Name="VoidButton" Content="Void race" Click="OnVoidRace" />
+                                            <TextBox x:Name="ResultRevision" Header="Result revision" MaxLength="128" />
+                                            <ComboBox x:Name="ResultKind" Header="Result kind" SelectedIndex="0" HorizontalAlignment="Stretch">
+                                                <x:String>Normal</x:String><x:String>Exceptional</x:String>
+                                            </ComboBox>
+                                            <TextBlock Text="Finishers in order" />
+                                            <StackPanel x:Name="FinisherEditors" Spacing="8" />
+                                            <Button x:Name="AddFinisherButton" Content="Add finisher" Click="OnAddFinisher" />
+                                            <Button x:Name="SubmitResultButton" Content="Review result" Click="OnSubmitResult" />
+                                            <TextBlock x:Name="LatestResultText" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                            <Button x:Name="VerifyResultButton" Content="Verify result" Click="OnVerifyResult" />
+                                            <Button x:Name="SettleRaceButton" Content="Settle race — final" Click="OnSettleRace" />
+                                            <TextBlock Text="Winners &amp; Payouts" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                            <TextBlock x:Name="WinnersStatus" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                                            <TextBlock x:Name="WinnersText" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                        </StackPanel>
                                         <Expander Header="Server definition" HorizontalAlignment="Stretch">
                                             <TextBlock x:Name="ServerDefinition" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                                         </Expander>

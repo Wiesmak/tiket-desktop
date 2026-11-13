@@ -292,6 +292,7 @@ public sealed partial class MainPage
             renderedAdminRaces = live?.Races.Clone(); renderingAdministration = false;
         }
         var race = live?.Races.Races.FirstOrDefault(r => r.Definition.RaceId == (ServerAdminRace.SelectedItem as AdminRaceOption)?.Id);
+        RenderResults(race, idle);
         AdminRaceState.Text = race is null ? "" : $"{race.Status.Phase} · version {race.Status.Version}";
         OpenRaceButton.IsEnabled = connection.IsEventAdmin && idle && live?.Day.Status.Phase == DayPhase.Running &&
             race?.Status.Phase == RacePhase.Scheduled && live.Races.Races.Count(r => r.Status.Phase == RacePhase.BettingOpen) < live.Day.Definition.MaximumOpenRaces;

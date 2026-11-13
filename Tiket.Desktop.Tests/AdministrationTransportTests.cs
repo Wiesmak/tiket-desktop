@@ -23,7 +23,7 @@ public class AdministrationTransportTests
         return new(1, Guid.NewGuid(), new(profile.Id,profile.Backend.OriginalString,profile.Issuer.OriginalString,profile.ClientId,"actor",day),
             AdministrationWire.Prefix+service+operation,request.ToByteArray(),key,DateTimeOffset.UtcNow,MutationState.Sending,null);
     }
-    public static IEnumerable<object[]> Operations => Enum.GetValues<AdministrationOperation>().Select(op=>new object[]{op});
+    public static IEnumerable<object[]> Operations => Enum.GetValues<AdministrationOperation>().Where(op => op <= AdministrationOperation.AddOpeningFunding).Select(op=>new object[]{op});
     [Theory] [MemberData(nameof(Operations))]
     public async Task EveryGeneratedCommandSendsExactBytesOneBearerAndDeadline(AdministrationOperation operation)
     {

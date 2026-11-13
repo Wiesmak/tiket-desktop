@@ -27,7 +27,9 @@ Owner authorized pure Phase 3 implementation/testing after Phase 2 PR #3 merge w
 
 ## Phase 5 delivery — 2026-11-13
 
-Functional native administration, encrypted local plans, immutable create, lifecycle/onboarding and coordinated cashier/account/print refresh are implemented and exercised against a newly provisioned disposable event. See VALIDATION_PHASE_5.md. PR #6 stays unmerged; final-head green CI and owner review govern delivery. Phase 6 is not started and must wait for Phase 5 merge/post-merge checks.
+Functional native administration, encrypted local plans, immutable create, lifecycle/onboarding and coordinated cashier/account/print refresh are implemented and exercised against a newly provisioned disposable event. PR #6 merged at d35a1d6; post-merge Windows CI passed.
+
+Phase 6 implements native scratch/void, result submission/verification/settlement and AUDITOR Winners & Payouts with exact-key administration recovery. The populated-race native settlement/report flow passed in the disposable lab; see VALIDATION_PHASE_6.md. Phase 7 remains out of scope.
 
 ## Phase 6 binding acceptance: settled winning coupons
 

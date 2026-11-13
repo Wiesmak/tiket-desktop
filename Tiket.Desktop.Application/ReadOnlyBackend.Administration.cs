@@ -28,6 +28,16 @@ public sealed partial class ReadOnlyBackend : IAdministrationBackend, IAccountBa
         var until = DateTime.UtcNow.Add(deadline);
         IMessage response = saved.Method switch
         {
+            AdministrationWire.Prefix + "RaceService/ScratchHorse" => await new RaceService.RaceServiceClient(channel)
+                .ScratchHorseAsync(ScratchHorseRequest.Parser.ParseFrom(saved.Request), headers, until, cancellation),
+            AdministrationWire.Prefix + "RaceService/VoidRace" => await new RaceService.RaceServiceClient(channel)
+                .VoidRaceAsync(RaceCommand.Parser.ParseFrom(saved.Request), headers, until, cancellation),
+            AdministrationWire.Prefix + "ResultService/SubmitResult" => await new ResultService.ResultServiceClient(channel)
+                .SubmitResultAsync(SubmitResultRequest.Parser.ParseFrom(saved.Request), headers, until, cancellation),
+            AdministrationWire.Prefix + "ResultService/VerifyResult" => await new ResultService.ResultServiceClient(channel)
+                .VerifyResultAsync(VerifyResultRequest.Parser.ParseFrom(saved.Request), headers, until, cancellation),
+            AdministrationWire.Prefix + "ResultService/SettleRace" => await new ResultService.ResultServiceClient(channel)
+                .SettleRaceAsync(SettleRaceRequest.Parser.ParseFrom(saved.Request), headers, until, cancellation),
             AdministrationWire.Prefix + "RaceDayService/CreateRaceDay" => await new RaceDayService.RaceDayServiceClient(channel)
                 .CreateRaceDayAsync(CreateRaceDayRequest.Parser.ParseFrom(saved.Request), headers, until, cancellation),
             AdministrationWire.Prefix + "RaceDayService/PublishRaceDay" => await new RaceDayService.RaceDayServiceClient(channel)
