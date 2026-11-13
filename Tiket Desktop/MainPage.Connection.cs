@@ -32,6 +32,7 @@ public sealed partial class MainPage
                 State.Destination == Destination.Cashier, async ct => { retryRequested = false; var success = await connection.SynchronizeAsync(day, ct); if (success) {
                     connection.SelectPlayer(State.Destination == Destination.Cashier ? PurchasePlayer.Text : AdminPlayer.Text);
                     success &= await connection.ReadSelectedPlayerAsync(ct);
+                    if (State.Destination == Destination.Administration) success &= await connection.ReadResultsAsync(ct);
                     if (showPlayers && connection.IsAuditor) await connection.ReadPlayersAsync();
                     await RefreshVisiblePrintsAsync(ct);
                 } return success; });

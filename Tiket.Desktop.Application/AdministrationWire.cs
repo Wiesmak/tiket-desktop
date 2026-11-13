@@ -3,7 +3,7 @@ using Pl.Umamusume.Tiket.Api.V1;
 
 namespace Tiket.Desktop.Application;
 
-// Explicit Phase 5 allow-list. No suffix dispatch, generic RPC invocation or Phase 6/7 command support.
+// Explicit administration allow-list; no generic RPC invocation.
 internal static class AdministrationWire
 {
     internal const string Prefix = "pl.umamusume.tiket.api.v1.";
@@ -22,8 +22,16 @@ internal static class AdministrationWire
                 identity = (day.RaceDayId, day.IdempotencyKey); break;
             case Prefix + "RaceService/OpenBetting":
             case Prefix + "RaceService/CloseBetting":
+            case Prefix + "RaceService/VoidRace":
                 var race = RaceCommand.Parser.ParseFrom(bytes); request = race;
                 identity = (race.RaceDayId, race.IdempotencyKey); break;
+            case Prefix + "RaceService/ScratchHorse":
+            case Prefix + "ResultService/SubmitResult":
+            case Prefix + "ResultService/VerifyResult":
+            case Prefix + "ResultService/SettleRace":
+                request = Phase6Wire.Parse(method, bytes);
+                var command = Phase6Wire.Command(request);
+                identity = (command.RaceDayId, command.IdempotencyKey); break;
             case Prefix + "EnrollmentService/EnrollPlayer":
                 var enroll = EnrollPlayerRequest.Parser.ParseFrom(bytes); request = enroll;
                 identity = (enroll.RaceDayId, enroll.IdempotencyKey); break;
@@ -39,6 +47,7 @@ internal static class AdministrationWire
     }
     internal static void Verify(AdministrationRecord record, byte[] bytes)
     {
+        if (Phase6Wire.IsMutation(record.Method)) { Phase6Wire.Verify(record, bytes); return; }
         if (record.Method is Prefix + "RaceDayService/CreateRaceDay" or Prefix + "RaceDayService/PublishRaceDay" or Prefix + "RaceDayService/StartRaceDay")
         {
             var ack = DayAcknowledgement.Parser.ParseFrom(bytes);

@@ -1,0 +1,24 @@
+﻿# Phase 6 validation — 2026-11-13
+
+- Final code head: `2e9ecfdf4dc2f5795aef6f7c1bdeb68db1f7c270`.
+- PR: https://github.com/Wiesmak/tiket-desktop/pull/7 (never auto-merge).
+- Windows code-head CI: https://github.com/Wiesmak/tiket-desktop/actions/runs/43433084616 ; final documentation-head check is linked on the PR.
+- Baseline: merged Phase 5 `d35a1d6`; post-merge CI 43429691052 succeeded.
+- Debug x64 build passed without warnings. Rebuilt after accessibility IDs and final settlement-review wording changed.
+- Full local automated suite ran once: 303 passed, zero failed/skipped.
+- Four generated-read tests added afterward; focused Phase 6 suite: 24 passed. Final suite contains 307 tests; hosted CI runs the final suite.
+- Coverage: distinct role gates, eligible ordered finishers and version invalidation, UNKNOWN exact-request/key/subject replay for submit/settle, five generated mutators/four generated reads, refund exclusion, separate stakes, pagination, empty winners and partial coupon access.
+- Native lab profile: disposable-tiket-lab; existing event `a9c4f03e-98cf-4587-a8c6-9759c742292a`.
+- Race: `916523d6-e19b-4bc1-b2f6-c86dda75d7c8`; read BETTING_CLOSED v2 before mutation.
+- Native submit → verify → settle passed, revisions/phases v3 → v4 → v5, result `phase6-r1`.
+- Settlement: `b96f7912-cb31-4f05-9d46-44bf2a7889d3`; durable administration ACK retains the original ID/key.
+- Winning coupon: `41449acf-8f38-4220-a458-024c99b010ca`, player `e53ffc71-667e-4b0d-8c83-df50070aa4ec`, WIN leg ordinal 0.
+- Native report asserted winning-leg stake 10 PLN, separately labeled whole-coupon stake 10 PLN, award 9 PLN.
+- Report reconciled: WIN valid stake 10, winning units 1, dividend 9, distributed 9, house allocation 1; other pools zero. Player total 9 PLN.
+- Read-only PostgreSQL check confirmed exactly one settlement for this race and one WON resolution of 9 with the same settlement UUID.
+- One cashier-only native check passed: no winner data, auditor-access message, settlement disabled.
+- Lab-only change: added RESULT_SUBMITTER / RESULT_VERIFIER / SETTLEMENT_OPERATOR realm roles to existing lab-admin (existing mapper emits tiket_roles); attributes and prior roles preserved.
+- Old events, second disposable race, volumes and Phase 4/5 journals/evidence remain untouched.
+- Not live-tested: scratch/void refunds, exceptional/corrected results, empty settlement, multi-page large report or lost ACK; deterministic tests cover the relevant transport/recovery/report paths.
+- Missing API detail: a settled race with no journal ACK/discoverable resolution settlement ID shows “Settlement details unavailable.” Candidate future narrow read: GetRaceSettlement; populated reporting works today.
+- No screenshot collection, backend/proto/package changes, hardware printing, signing, deployment or Phase 7 completion/cashout.

@@ -4,7 +4,7 @@ using Pl.Umamusume.Tiket.Api.V1;
 
 namespace Tiket.Desktop.Application;
 
-public enum AdministrationOperation { CreateRaceDay, PublishRaceDay, StartRaceDay, OpenBetting, CloseBetting, EnrollPlayer, AddOpeningFunding }
+public enum AdministrationOperation { CreateRaceDay, PublishRaceDay, StartRaceDay, OpenBetting, CloseBetting, EnrollPlayer, AddOpeningFunding, ScratchHorse, VoidRace, SubmitResult, VerifyResult, SettleRace }
 public sealed record AdministrationReview(Guid Id, string Title, string Payload);
 public sealed record LocalAdministration(Guid Id, string Operation, string State, bool CanRecover);
 
@@ -55,7 +55,7 @@ public sealed partial class ConnectionSession
             if (!grants.Roles.Contains("CASHIER") || !grants.Players.Contains(player))
                 throw new InvalidOperationException("Cashier access for this player is required.");
         }
-        else if (!grants.Roles.Contains("EVENT_ADMIN")) throw new InvalidOperationException("Event administrator access required.");
+        else if (!grants.Roles.Contains(Phase6Wire.RequiredRole(r.Method))) throw new InvalidOperationException("Required role: " + Phase6Wire.RequiredRole(r.Method));
     }
     private void EnsureAdministrationStorage()
     {
@@ -90,6 +90,7 @@ public sealed partial class ConnectionSession
     }
     private void ResetEvent()
     {
+        ResetResults();
         inspectedPrintJobs.Clear();
         eventRevision++; eventLifetime.Cancel(); eventLifetime.Dispose(); eventLifetime = new();
         administrationReview = null; UnusedEvent = null; selectedEvent = null;
@@ -173,7 +174,8 @@ public sealed partial class ConnectionSession
         if (mutationBusy || Busy || administrationReview is not null) throw new InvalidOperationException("Finish the current review first.");
         var service = operation switch {
             AdministrationOperation.CreateRaceDay or AdministrationOperation.PublishRaceDay or AdministrationOperation.StartRaceDay => "RaceDayService/",
-            AdministrationOperation.OpenBetting or AdministrationOperation.CloseBetting => "RaceService/", _ => "EnrollmentService/" };
+            AdministrationOperation.OpenBetting or AdministrationOperation.CloseBetting or AdministrationOperation.ScratchHorse or AdministrationOperation.VoidRace => "RaceService/",
+            AdministrationOperation.SubmitResult or AdministrationOperation.VerifyResult or AdministrationOperation.SettleRace => "ResultService/", _ => "EnrollmentService/" };
         var record = new AdministrationRecord(1, Guid.NewGuid(), binding, AdministrationWire.Prefix + service + operation,
             request.ToByteArray(), AdministrationWire.Identity(AdministrationWire.Prefix + service + operation, request.ToByteArray()).Key,
             DateTimeOffset.UtcNow, MutationState.Prepared, null);
@@ -208,6 +210,16 @@ public sealed partial class ConnectionSession
         { if (UnusedEvent?.ToString() != r.Binding.Event) throw new InvalidOperationException("Event slot changed."); return; }
         var day = Overview?.Day ?? throw new InvalidOperationException("Current day required.");
         if (day.Definition.RaceDayId != r.Binding.Event) throw new InvalidOperationException("Event changed.");
+        if (Phase6Wire.IsMutation(r.Method))
+        {
+            var command = Phase6Wire.Command(Phase6Wire.Parse(r.Method, r.Request));
+            var race = Overview!.Races.Races.Single(x => x.Definition.RaceId == command.RaceId);
+            if (day.Status.Version != command.ExpectedDayVersion || race.Status.Version != command.ExpectedRaceVersion)
+                throw new InvalidOperationException("Race changed — review again.");
+            if (r.Method.EndsWith("/SettleRace", StringComparison.Ordinal) && race.Status.SelectedResultRevision != settlementReviewRevision)
+                throw new InvalidOperationException("Result revision changed — review again.");
+            return;
+        }
         if (r.Method.Contains("RaceDayService/", StringComparison.Ordinal))
         {
             var command = DayCommand.Parser.ParseFrom(r.Request);
@@ -244,9 +256,18 @@ public sealed partial class ConnectionSession
         mutationBusy = true; AdministrationStatus = "Sending…"; Changed?.Invoke();
         try
         {
-            await new JournaledAdministration(administrationJournal!).SendAsync(record.Id, record.Binding,
+            var acknowledged = await new JournaledAdministration(administrationJournal!).SendAsync(record.Id, record.Binding,
                 (saved, ct) => transport.TransmitAdministrationAsync(saved, credential, ct), cancellation.Token);
-            if (actor == generation && context == eventRevision) { AdministrationStatus = "Completed"; UnusedEvent = null; playerReadDenied = false; }
+            if (actor == generation && context == eventRevision) {
+                AdministrationStatus = "Completed"; UnusedEvent = null; playerReadDenied = false;
+                if (record.Method is AdministrationWire.Prefix + "RaceService/ScratchHorse" or AdministrationWire.Prefix + "RaceService/VoidRace") {
+                    var refund = RefundAcknowledgement.Parser.ParseFrom(acknowledged.Response!);
+                    AdministrationStatus = $"Refunded {refund.RefundedLegs} legs · {refund.RefundedStake} {Overview?.Day.Definition.Currency}\n" +
+                        string.Join("\n", refund.Players.Select(p => p.PlayerId + " · " + p.Amount));
+                }
+                if (record.Method == AdministrationWire.Prefix + "ResultService/SettleRace")
+                    AdministrationStatus = "Settled · " + SettlementInformation.Parser.ParseFrom(acknowledged.Response!).SettlementId;
+            }
         }
         catch (MutationUncertainException error)
         {
