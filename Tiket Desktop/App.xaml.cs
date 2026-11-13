@@ -22,6 +22,7 @@ namespace Tiket_Desktop
     public partial class App : Application
     {
         private Window? _window;
+        internal Window MainWindow => _window ?? throw new InvalidOperationException("Window not initialized.");
 
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code

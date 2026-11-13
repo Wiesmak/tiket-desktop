@@ -71,7 +71,8 @@
                                     </StackPanel>
                                     <TextBlock x:Name="QuoteSummary" TextWrapping="Wrap" IsTextSelectionEnabled="True" Visibility="Collapsed" />
                                     <Expander x:Name="QuoteDetailsExpander" Header="Quote details" Visibility="Collapsed" HorizontalAlignment="Stretch"><TextBlock x:Name="QuoteDetails" TextWrapping="Wrap" /></Expander>
-                                    <TextBox x:Name="PurchasePlayer" Header="Player UUID" MaxLength="36" TextChanged="OnCashierPlayerChanged" />
+                                    <ComboBox x:Name="CashierAliasPlayers" Header="Player alias" HorizontalAlignment="Stretch" SelectionChanged="OnCashierAliasPlayerChanged" />
+                                    <TextBox x:Name="PurchasePlayer" Header="Player UUID (immutable identity)" MaxLength="36" TextChanged="OnCashierPlayerChanged" />
                                     <TextBlock x:Name="CashierAccountStatus" TextWrapping="Wrap" />
                                     <ComboBox x:Name="PurchasePos" Header="Point of sale" HorizontalAlignment="Stretch" SelectionChanged="OnPurchasePosChanged" />
                                     <TextBlock x:Name="PurchaseContext" TextWrapping="Wrap" />
@@ -95,6 +96,8 @@
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <StackPanel x:Name="LocalPlanEditor" Spacing="12">
+                                    <Button x:Name="NewLabEventButton" Content="Create new lab event / resume preparation" Click="OnNewLabEvent" />
+                                    <Button x:Name="ProvisionPlayersButton" Content="Provision access to this event and player roster" Click="OnProvisionPlayers" />
                                     <TextBlock x:Name="LocalPlanStatus" Text="Local plan" TextWrapping="Wrap" />
                                     <TextBlock x:Name="CreatedDefinitionSummary" TextWrapping="Wrap" />
                                         <TextBlock x:Name="PlanValidation" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
@@ -104,6 +107,7 @@
                                         <Button x:Name="DiscardPlanButton" Content="Discard" Click="OnDiscardPlan" />
                                     </StackPanel>
                                     <StackPanel x:Name="EditablePlanFields" Spacing="12">
+                                    <Button Content="Use six-race template" Click="OnSixRaceTemplate" />
                                     <ComboBox x:Name="BuilderStep" Header="Local plan step" SelectedIndex="0"
                                               SelectionChanged="OnBuilderStepChanged" AutomationProperties.Name="Local race-day builder step" HorizontalAlignment="Stretch">
                                         <x:String>1 · Basics</x:String><x:String>2 · Races</x:String><x:String>3 · Runners</x:String>
@@ -188,6 +192,31 @@
                                             <TextBlock x:Name="ServerDefinition" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                                         </Expander>
                                         <TextBlock Text="Player enrollment and opening funding" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                        <TextBlock Text="App-managed player aliases · saved for this profile and event. Preparing aliases does not enroll players or grant access." TextWrapping="Wrap" />
+                                        <Button Content="Prepare 24 player aliases" Click="OnPreparePlayerAliases" />
+                                        <ComboBox x:Name="AliasPlayers" Header="Player" HorizontalAlignment="Stretch" SelectionChanged="OnAliasPlayerChanged" />
+                                        <TextBox x:Name="PlayerDisplayName" Header="Local display name" MaxLength="128" />
+                                        <Button Content="Save display name" Click="OnSavePlayerAlias" />
+                                        <Button Content="Use opening funding: 0 paid + 200 promotional" Click="OnPromotionalOpening" />
+                                        <Button x:Name="EnrollRosterButton" Content="Review / enroll prepared roster" Click="OnEnrollRoster" />
+                                        <Button x:Name="CancelRosterButton" Content="Stop after current enrollment" Click="OnCancelRoster" IsEnabled="False" />
+                                        <TextBlock x:Name="AliasStatus" TextWrapping="Wrap" />
+                                        <Expander Header="Guided race-round wagering" HorizontalAlignment="Stretch">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Text="Uses the selected server race and first authorized POS. Review every proposed selection and server quote before placing. One coupon per eligible player." TextWrapping="Wrap" />
+                                                <Button x:Name="PlanRoundButton" Content="Read balances / quote or resume round" Click="OnPlanRound" />
+                                                <Button x:Name="PlaceRoundButton" Content="Review / place round bets" Click="OnPlaceRound" IsEnabled="False" />
+                                                <Button x:Name="StopRoundButton" Content="Stop after current purchase" Click="OnStopRound" IsEnabled="False" />
+                                                <TextBlock x:Name="RoundDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                            </StackPanel>
+                                        </Expander>
+                                        <Expander Header="Event Results &amp; Payouts" HorizontalAlignment="Stretch">
+                                            <StackPanel Spacing="8">
+                                                <Button x:Name="BuildEventReportButton" Content="Build event Results &amp; Payouts" Click="OnBuildEventReport" />
+                                                <Button x:Name="ExportEventReportButton" Content="Export displayed report as CSV" Click="OnExportEventReport" IsEnabled="False" />
+                                                <TextBlock x:Name="EventReportDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                            </StackPanel>
+                                        </Expander>
                                         <TextBox x:Name="AdminPlayer" Header="Player UUID" MaxLength="36" TextChanged="OnAdminPlayerChanged" />
                                         <Button Content="Player coupons and detail" Click="OnPlayerHistory" />
                                         <Button Content="Race status and revisions" Click="OnRaceHistory" />

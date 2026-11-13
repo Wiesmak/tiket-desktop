@@ -9,4 +9,5 @@
   <Project Path="Tiket.Desktop.Application/Tiket.Desktop.Application.csproj" />
   <Project Path="Tiket.Desktop.Contracts/Tiket.Desktop.Contracts.csproj" />
   <Project Path="Tiket.Desktop.Tests/Tiket.Desktop.Tests.csproj" />
+  <Project Path="Tiket.Lab.Provisioning/Tiket.Lab.Provisioning.csproj" />
 </Solution>

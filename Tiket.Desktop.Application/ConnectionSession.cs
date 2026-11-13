@@ -96,6 +96,14 @@ public sealed partial class ConnectionSession : IDisposable
             }, lifetime.Token);
             if (generation != current) return;
             material = value;
+            // Discovery changes selectors only. Business authorization still uses verified grants and server checks.
+            if (Profile.DevelopmentLoopback && value.AdministrationGrants is { } grants)
+            {
+                var events = Profile.KnownEvents.Concat(grants.Events.Select(s => Guid.TryParseExact(s, "D", out var id) ? id : Guid.Empty)
+                    .Where(id => id != Guid.Empty)).Distinct().Select(id => id.ToString("D"));
+                Profile = new ConnectionProfile(Profile.Id, Profile.DisplayName, Profile.Backend.OriginalString,
+                    Profile.Issuer.OriginalString, Profile.ClientId, Profile.ApiAudience, Profile.Scopes, events, true);
+            }
             PurchaseStatus = value.OperatingGrants is null ? "Cashier access required for purchases." : "Ready";
             State = ConnectionState.SignedIn;
         }
@@ -232,6 +240,9 @@ public sealed partial class ConnectionSession : IDisposable
             if (secured) Overview = null;
             if (state == ConnectionState.Expired) Clear();
             State = state;
+            if (secured && state == ConnectionState.UnknownEvent && selectedEvent is { } missing &&
+                material?.AdministrationGrants?.Events.Contains(missing.ToString("D")) == true)
+                UnusedEvent = missing;
         }
         catch (OperationCanceledException) { if (current == generation && (!secured || context == eventRevision)) State = ConnectionState.Cancelled; }
         catch (Exception) { if (current == generation && (!secured || context == eventRevision)) State = ConnectionState.Error; }

@@ -23,6 +23,7 @@ public sealed partial class MainPage
     }
     private async Task SynchronizeVisibleAsync()
     {
+        if (connection.StaffWorkflowBusy || rosterCancellation is not null) return;
         var key = connection.Subject is null || KnownEvents.SelectedItem is not Guid ||
             (!retryRequested && connection.State is ConnectionState.Denied or ConnectionState.UnknownEvent) ? null :
             string.Join("|", connection.Profile?.Id, connection.Subject, KnownEvents.SelectedItem);
@@ -97,6 +98,13 @@ public sealed partial class MainPage
         SessionStatus.Text = connection.State + " · " + ConnectionErrors.Message(connection.State) +
             (connection.SafeDiagnostic is null ? "" : "\n" + connection.SafeDiagnostic);
         OperatorStatus.Text = connection.Subject is null ? "" : $"Operator: {connection.Subject} · expires {connection.ExpiresAt:g}";
+        if (connection.Profile is { } selectedProfile &&
+            !(KnownEvents.ItemsSource as IEnumerable<Guid> ?? []).SequenceEqual(selectedProfile.KnownEvents))
+        {
+            var selected = KnownEvents.SelectedItem;
+            KnownEvents.ItemsSource = selectedProfile.KnownEvents;
+            KnownEvents.SelectedItem = selected;
+        }
         PingDetails.Text = connection.PingStatus ?? "";
         var live = connection.Overview;
         EventDetails.Text = "";
