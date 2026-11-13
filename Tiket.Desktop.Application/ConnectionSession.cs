@@ -4,7 +4,7 @@ using Pl.Umamusume.Tiket.Api.V1;
 namespace Tiket.Desktop.Application;
 
 /// <summary>Owned by the UI dispatcher. Every operation uses a generation and cancellation scope.</summary>
-public sealed class ConnectionSession : IDisposable
+public sealed partial class ConnectionSession : IDisposable
 {
     private readonly INativeLogin login;
     private readonly Func<ConnectionProfile, IReadOnlyBackend> backendFactory;
@@ -19,6 +19,7 @@ public sealed class ConnectionSession : IDisposable
     public DateTimeOffset? ExpiresAt => material?.ExpiresAt;
     public EventOverview? Overview { get; private set; }
     public string? PingStatus { get; private set; }
+    public string? SafeDiagnostic { get; private set; }
     public bool Busy { get; private set; }
     public CashierComposer Composer { get; } = new();
     public event Action? Changed;
@@ -39,6 +40,9 @@ public sealed class ConnectionSession : IDisposable
 
     private void Clear()
     {
+        review = null;
+        inspectedPrintJobs.Clear();
+        PurchaseStatus = "Sign in to inspect locally journal-known transactions.";
         Composer.SetContext(null, null);
         generation++;
         lifetime.Cancel();
@@ -49,6 +53,7 @@ public sealed class ConnectionSession : IDisposable
         material = null;
         Overview = null;
         PingStatus = null;
+        SafeDiagnostic = null;
         Busy = false;
     }
 
@@ -88,10 +93,15 @@ public sealed class ConnectionSession : IDisposable
             }, lifetime.Token);
             if (generation != current) return;
             material = value;
+            PurchaseStatus = value.OperatingGrants is null ? "Read-only session: verified financial operating context unavailable." :
+                "Ready · review a server quote or inspect locally known history. No new purchase has been submitted in this session.";
             State = ConnectionState.SignedIn;
         }
         catch (OperationCanceledException) { if (generation == current) State = ConnectionState.Cancelled; }
-        catch (SignInFailure error) { if (generation == current) State = error.State; }
+        catch (SignInFailure error)
+        {
+            if (generation == current) { State = error.State; SafeDiagnostic = error.SafeDiagnostic; }
+        }
         catch (Exception) { if (generation == current) State = ConnectionState.Error; }
         finally { if (generation == current) { Busy = false; Changed?.Invoke(); } }
     }
@@ -177,5 +187,10 @@ public sealed class ConnectionSession : IDisposable
         }
     }
 
-    public void Dispose() { if (disposed) return; disposed = true; Clear(); lifetime.Dispose(); Changed = null; }
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true; Clear(); lifetime.Dispose(); Changed = null;
+        if (!mutationBusy) { journal?.Dispose(); journal = null; }
+    }
 }

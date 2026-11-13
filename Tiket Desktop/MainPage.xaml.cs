@@ -31,8 +31,9 @@ public sealed partial class MainPage : Page
     {
         if (WorkspaceGutter is null) return;
         // The native minimal-mode menu occupies its own top band; content follows it.
+        ContentScroll.Margin = args.DisplayMode == NavigationViewDisplayMode.Minimal ? new Thickness(0, 48, 0, 0) : new Thickness(0);
         WorkspaceGutter.Padding = args.DisplayMode == NavigationViewDisplayMode.Minimal
-            ? new Thickness(12, 48, 12, 24) : new Thickness(24, 16, 24, 24);
+            ? new Thickness(12, 0, 12, 24) : new Thickness(24, 16, 24, 24);
     }
 
     private void OnNavigationChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)

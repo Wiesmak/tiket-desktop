@@ -8,6 +8,7 @@ public sealed class LoginMaterial
     public string Subject { get; }
     internal string AccessToken { get; }
     public DateTimeOffset ExpiresAt { get; }
+    internal OperatingGrants? OperatingGrants { get; init; }
     public LoginMaterial(string subject, string accessToken, DateTimeOffset expiresAt)
     {
         if (string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(accessToken) ||
@@ -28,6 +29,7 @@ public interface INativeLogin
 internal sealed class SignInFailure(ConnectionState state) : InvalidOperationException("Sign-in failed; diagnostic details redacted.")
 {
     public ConnectionState State { get; } = state;
+    public string? SafeDiagnostic { get; init; }
 }
 
 public sealed class NativeOidcLogin : INativeLogin
@@ -37,8 +39,9 @@ public sealed class NativeOidcLogin : INativeLogin
     internal NativeOidcLogin(Func<Uri, Task> openBrowser, Func<HttpMessageHandler> handlerFactory) : this(openBrowser) => this.handlerFactory = handlerFactory;
     public NativeOidcLogin(Func<Uri, Task>? openBrowser = null) => this.openBrowser = openBrowser ?? (uri =>
     {
-        if (Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }) is null)
-            throw new InvalidOperationException("System browser could not open.");
+        // Shell activation may reuse an existing browser and return no process handle.
+        // Only an exception proves launch failure; a null handle is a valid shell result.
+        Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
         return Task.CompletedTask;
     });
 
@@ -61,9 +64,13 @@ public sealed class NativeOidcLogin : INativeLogin
         });
         progress(ConnectionState.Discovering);
         Duende.IdentityModel.OidcClient.AuthorizeState prepared;
-        try { prepared = await client.PrepareLoginAsync(new Duende.IdentityModel.Client.Parameters { { "nonce", nonce } }, cancellationToken); }
+        try { prepared = await client.PrepareLoginAsync(new Duende.IdentityModel.Client.Parameters { { "nonce", nonce }, { "prompt", "login" } }, cancellationToken); }
         catch (OperationCanceledException) { throw; }
         catch (Exception) { throw new SignInFailure(ConnectionState.DiscoveryError); }
+        if (prepared.IsError || !Uri.TryCreate(prepared.StartUrl, UriKind.Absolute, out var startUri) ||
+            startUri.Scheme != "https")
+            throw new SignInFailure(ConnectionState.DiscoveryError)
+            { SafeDiagnostic = "Authorization preparation failed before browser activation." };
         if (!string.Equals(client.Options.ProviderInformation.IssuerName, profile.Issuer.OriginalString, StringComparison.Ordinal))
             throw new SignInFailure(ConnectionState.DiscoveryError);
         progress(ConnectionState.BrowserPending);
@@ -72,8 +79,12 @@ public sealed class NativeOidcLogin : INativeLogin
         string response;
         try
         {
-            try { await openBrowser(new Uri(prepared.StartUrl)); }
-            catch (Exception) { throw new SignInFailure(ConnectionState.BrowserError); }
+            try { await openBrowser(startUri); }
+            catch (Exception error)
+            {
+                throw new SignInFailure(ConnectionState.BrowserError)
+                { SafeDiagnostic = $"Browser activation: {error.GetType().Name} (0x{error.HResult:X8})" };
+            }
             try { response = await receive; }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception) { throw new SignInFailure(ConnectionState.CallbackError); }
@@ -90,7 +101,13 @@ public sealed class NativeOidcLogin : INativeLogin
         catch (Exception) { throw new SignInFailure(ConnectionState.ValidationError); }
         if (result.IsError) throw new SignInFailure(ConnectionState.ValidationError);
         // Only validated subject plus access token survive this method; ID/refresh material is not retained.
-        try { return new LoginMaterial(result.User.FindFirst("sub")?.Value ?? "", result.AccessToken, result.AccessTokenExpiration); }
+        try
+        {
+            var subject = result.User.FindFirst("sub")?.Value ?? "";
+            var grants = await OperatingGrants.ValidateAsync(result.AccessToken, subject, profile, client.Options);
+            var expiry = grants is not null && grants.ExpiresAt < result.AccessTokenExpiration ? grants.ExpiresAt : result.AccessTokenExpiration;
+            return new LoginMaterial(subject, result.AccessToken, expiry) { OperatingGrants = grants };
+        }
         catch (ArgumentException) { throw new SignInFailure(ConnectionState.ValidationError); }
     }
     private static LoopbackCallback BindCallback()

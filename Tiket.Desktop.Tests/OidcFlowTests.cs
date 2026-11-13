@@ -12,6 +12,29 @@ namespace Tiket.Desktop.Tests;
 public class OidcFlowTests
 {
     [Theory]
+    [InlineData("access-valid", true)]
+    [InlineData("access-subject", false)]
+    [InlineData("access-audience", false)]
+    [InlineData("access-issuer", false)]
+    [InlineData("access-role", false)]
+    [InlineData("access-pos", false)]
+    [InlineData("access-pos-leadingzero", false)]
+    [InlineData("access-pos-sign", false)]
+    [InlineData("access-signature", false)]
+    public async Task FinancialContextRequiresVerifiedAccessTokenBindings(string scenario, bool permitted)
+    {
+        using var issuer = new SyntheticIssuer(scenario);
+        var login = new NativeOidcLogin(issuer.BrowserAsync, () => issuer);
+        var material = await login.SignInAsync(ConnectionTests.Profile(), _ => { }, CancellationToken.None);
+        Assert.Equal(permitted, material.OperatingGrants is not null);
+        if (permitted)
+        {
+            Assert.Equal("fixture-cashier", material.OperatingGrants!.Cashier);
+            Assert.Equal(new[] { 7 }, material.OperatingGrants.Poses);
+            Assert.NotEqual(material.Subject, material.OperatingGrants.Cashier);
+        }
+    }
+    [Theory]
     [InlineData("valid")]
     [InlineData("issuer")]
     [InlineData("audience")]
@@ -21,6 +44,7 @@ public class OidcFlowTests
     [InlineData("bad-code")]
     [InlineData("discovery-issuer")]
     [InlineData("unsupported-pkce")]
+    [InlineData("par-rejected")]
     public async Task CompleteCodePkceWithSignedDiscoveryFixture(string scenario)
     {
         using var issuer = new SyntheticIssuer(scenario);
@@ -32,6 +56,12 @@ public class OidcFlowTests
             Assert.Equal("api-access-only", result.AccessToken);
             Assert.True(issuer.PkceVerified);
             Assert.DoesNotContain("api-access-only", result.ToString());
+        }
+        else if (scenario == "par-rejected")
+        {
+            var error = await Assert.ThrowsAsync<SignInFailure>(() => login.SignInAsync(ConnectionTests.Profile(), _ => { }, CancellationToken.None));
+            Assert.Equal(ConnectionState.DiscoveryError, error.State);
+            Assert.False(issuer.BrowserOpened);
         }
         else await Assert.ThrowsAnyAsync<InvalidOperationException>(() => login.SignInAsync(ConnectionTests.Profile(), _ => { }, CancellationToken.None));
     }
@@ -74,8 +104,10 @@ public class OidcFlowTests
         private readonly RSA rsa = RSA.Create(2048);
         private Dictionary<string, string> authorization = new();
         public bool PkceVerified;
+        public bool BrowserOpened;
         public async Task BrowserAsync(Uri uri)
         {
+            BrowserOpened = true;
             authorization = LoopbackCallback.ParseQuery(uri.Query);
             Assert.Equal("code", authorization["response_type"]);
             Assert.Equal("S256", authorization["code_challenge_method"]);
@@ -93,11 +125,15 @@ public class OidcFlowTests
                     issuer = scenario == "discovery-issuer" ? "https://wrong.example.invalid" : "https://identity.example.invalid",
                     authorization_endpoint = "https://identity.example.invalid/authorize",
                     token_endpoint = "https://identity.example.invalid/token",
+                    pushed_authorization_request_endpoint = scenario == "par-rejected" ? "https://identity.example.invalid/par" : null,
                     jwks_uri = "https://identity.example.invalid/jwks",
                     response_types_supported = new[] { "code" }, code_challenge_methods_supported = new[] { scenario == "unsupported-pkce" ? "plain" : "S256" },
                     subject_types_supported = new[] { "public" }, id_token_signing_alg_values_supported = new[] { "RS256" },
                     token_endpoint_auth_methods_supported = new[] { "none" }
                 };
+            else if (request.RequestUri.AbsolutePath == "/par")
+                return new HttpResponseMessage(HttpStatusCode.BadRequest)
+                { Content = new StringContent("{\"error\":\"invalid_request\",\"error_description\":\"Invalid scopes\"}", Encoding.UTF8, "application/json") };
             else if (request.RequestUri.AbsolutePath == "/jwks")
             {
                 var key = JsonWebKeyConverter.ConvertFromRSASecurityKey(new RsaSecurityKey(rsa) { KeyId = "fixture" });
@@ -128,10 +164,28 @@ public class OidcFlowTests
                     Expires = scenario == "expired" ? now.AddMinutes(-5) : now.AddMinutes(5),
                     SigningCredentials = new SigningCredentials(signing, SecurityAlgorithms.RsaSha256)
                 });
-                payload = new { access_token = "api-access-only", id_token = jwt, expires_in = 300, token_type = "Bearer" };
+                var access = "api-access-only";
+                if (scenario.StartsWith("access-")) access = new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+                {
+                    Issuer = scenario == "access-issuer" ? "https://other.invalid" : "https://identity.example.invalid",
+                    Audience = scenario == "access-audience" ? "other" : "tiket-api",
+                    Expires = DateTime.UtcNow.AddMinutes(5),
+                    Claims = new Dictionary<string, object>
+                    {
+                        ["sub"] = scenario == "access-subject" ? "other-subject" : "fixture-subject",
+                        ["tiket_roles"] = new[] { scenario == "access-role" ? "AUDITOR" : "CASHIER" },
+                        ["tiket_cashier"] = "fixture-cashier", ["tiket_events"] = new[] { ConnectionTests.Day.ToString() },
+                        ["tiket_players"] = new[] { Guid.NewGuid().ToString() },
+                        ["tiket_pos"] = new[] { scenario switch { "access-pos" => "invalid", "access-pos-leadingzero" => "07", "access-pos-sign" => "+7", _ => "7" } }
+                    },
+                    SigningCredentials = new SigningCredentials(new RsaSecurityKey(scenario == "access-signature" ? wrongKey : rsa)
+                        { KeyId = "fixture" }, SecurityAlgorithms.RsaSha256)
+                });
+                payload = new { access_token = access, id_token = jwt, expires_in = 300, token_type = "Bearer" };
             }
             return new HttpResponseMessage(HttpStatusCode.OK)
-            { Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json") };
+            { Content = new StringContent(JsonSerializer.Serialize(payload, new JsonSerializerOptions
+                { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }), Encoding.UTF8, "application/json") };
         }
         protected override void Dispose(bool disposing) { rsa.Dispose(); base.Dispose(disposing); }
     }

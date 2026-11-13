@@ -1,4 +1,12 @@
-﻿# Native shell UX — Phase 1
+﻿# Native shell UX
+
+## Current Phase 4 cashier flow
+
+The native composer now leads to an explicit actual-debit review with profile/backend/issuer/client, player UUID, verified POS/cashier, server canonical selection, integer stake/currency and versions. Cancel is the default focused action. PREPARING, SENDING, ACKED and UNKNOWN remain distinct; replay explains that it can complete a purchase. Native controls ship enabled only when their quote, grant and storage prerequisites are met. No fixture identifiers are hardcoded into shipping business logic.
+
+Live local history replaces the MOCK receipts. It uses the existing responsive secondary column and stacks below the editor when narrow; top-level purchase feedback keeps uncertainty visible. History does not claim POS-wide coverage. Original and reprint jobs are separate, historical ACK labels differ from current status, and a reprint requires inspection of the original current status plus a duplicate-output warning. DISPATCHED never claims paper delivery. Financial dialogs follow the selected Light/Dark theme and close on identity/profile change or expiry.
+
+The preserved 28/36 heading, 24/12 gutters, 900 effective-pixel column breakpoint, primary caps, Mica/titlebar, pane preferences and animation policy remain. The minimal-mode menu band now sits outside scrolling content so scrolled history cannot overlap the menu button. Historical phase descriptions below apply only to their original delivery.
 
 Cashier opens first, unconnected. All fixture statuses are explicitly MOCK; all unavailable backend actions remain disabled. The native title bar carries the app identity; a TitleTextBlockStyle heading shares the scrolling workspace container. There is no text pane footer. Auto navigation uses the native 640/1008 effective-pixel thresholds, a 220-pixel open pane and native compact/minimal menu behavior. Settings remains in the native footer.
 

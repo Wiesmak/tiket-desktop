@@ -44,16 +44,10 @@
                                    Style="{ThemeResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1" />
                         <InfoBar IsOpen="True" IsClosable="False" Severity="Informational"
 
-                                 Message="Read-only workspace · no purchases or printing. Historic ticket panels are MOCK." />
+                                 Message="Purchases debit the backend account after review. Uncertain outcomes require original-intent recovery. Print dispatch does not confirm paper delivery." />
                         <StackPanel x:Name="CashierPanel" Spacing="8"><TextBlock x:Name="CashierLiveContext" Visibility="Collapsed" TextWrapping="Wrap" />
                             <TextBlock x:Name="CashierQuotationHeading" Text="Cashier quotation · disconnected" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                            <Border Padding="12" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
-                                <StackPanel Spacing="4">
-                                    <TextBlock Text="Latest print · MOCK — no real job" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
-                                    <TextBlock Text="{x:Bind app:PreviewPresentation.PrintSummary(app:MockPrintState.Failed)}" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
+                            <TextBlock x:Name="PurchaseFeedback" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
                             <Grid x:Name="CashierLayout" RowSpacing="16">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition x:Name="CashierPrimary" Width="*" />
@@ -78,17 +72,18 @@
                                     </StackPanel>
                                     <TextBlock x:Name="QuoteSummary" TextWrapping="Wrap" IsTextSelectionEnabled="True" Visibility="Collapsed" />
                                     <TextBlock Text="Server quote; not purchased; terms may change. No money is reserved. Last-known status can change without notification." TextWrapping="Wrap" />
-                                    <Button Content="Review purchase" IsEnabled="False" />
+                                    <TextBox x:Name="PurchasePlayer" Header="Authorized player UUID (no name directory)" MaxLength="36" />
+                                    <ComboBox x:Name="PurchasePos" Header="POS from verified token grants" HorizontalAlignment="Stretch" SelectionChanged="OnPurchasePosChanged" />
+                                    <TextBlock x:Name="PurchaseContext" TextWrapping="Wrap" />
+                                    <Button x:Name="ReviewPurchaseButton" Content="Review purchase" Click="OnReviewPurchase" IsEnabled="False" />
                                 </StackPanel>
                                 <Border x:Name="RecentPanel" Grid.Row="1" Padding="16" CornerRadius="8" VerticalAlignment="Top"
                                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                                     <StackPanel Spacing="12">
-                                        <TextBlock Text="MOCK — no real tickets" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
-                                        <TextBlock Text="{x:Bind app:PreviewPresentation.PrintSummary(app:MockPrintState.Pending)}" TextWrapping="Wrap" />
-                                        <TextBlock Text="{x:Bind app:PreviewPresentation.PrintSummary(app:MockPrintState.Dispatched)}" TextWrapping="Wrap" />
-                                        <TextBlock Text="{x:Bind app:PreviewPresentation.PrintSummary(app:MockPrintState.Failed)}" TextWrapping="Wrap" />
-                                        <TextBlock Text="No tickets exist. Future history covers known local purchases, not all sales at a POS." TextWrapping="Wrap" />
+                                        <TextBlock Text="LIVE · locally journal-known history" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                        <Button Content="Refresh locally known history" Click="OnRefreshPurchaseHistory" />
+                                        <StackPanel x:Name="LivePurchaseHistory" Spacing="12" />
                                     </StackPanel>
                                 </Border>
                             </Grid>
@@ -170,7 +165,7 @@
                                 <x:String>System</x:String><x:String>Light</x:String><x:String>Dark</x:String>
                             </ComboBox>
                             <TextBlock Text="Appearance lasts for this session. Restart follows the system theme." TextWrapping="Wrap" />
-                            <TextBlock Text="About · Phase 2 read-only connection · all transactions remain unavailable" TextWrapping="Wrap" />
+                            <TextBlock Text="Purchase and reprint require verified cashier grants, durable local journal and explicit review." TextWrapping="Wrap" />
                         </StackPanel>
                     </StackPanel>
                 </Grid>

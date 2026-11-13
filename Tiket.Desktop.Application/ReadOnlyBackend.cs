@@ -1,5 +1,6 @@
 ﻿using Grpc.Core;
 using Grpc.Net.Client;
+using Google.Protobuf;
 using Pl.Umamusume.Tiket.Api.V1;
 
 namespace Tiket.Desktop.Application;
@@ -31,7 +32,8 @@ public sealed class ReadOnlyBackend : IReadOnlyBackend
                 PooledConnectionLifetime = TimeSpan.FromMinutes(10),
                 ConnectTimeout = TimeSpan.FromSeconds(10)
             },
-            MaxReceiveMessageSize = 4 * 1024 * 1024
+            MaxReceiveMessageSize = 4 * 1024 * 1024,
+            MaxRetryAttempts = 1
         });
     }
     public async Task<PingResponse> PingAsync(CancellationToken cancellationToken) =>
@@ -68,6 +70,43 @@ public sealed class ReadOnlyBackend : IReadOnlyBackend
             DateTime.UtcNow.Add(deadline), cancellationToken);
     }
     public void Dispose() => channel.Dispose();
+
+    // Internal mutation transport prerequisite. Native UI may only reach this through a durable coordinator.
+    // There is deliberately no retry policy or redirect fallback on the configured channel.
+    internal async Task<byte[]> TransmitJournaledAsync(MutationRecord sending, string accessToken, CancellationToken cancellationToken)
+    {
+        if (sending.State != MutationState.Sending || sending.Binding.Profile != profile.Id ||
+            sending.Binding.Backend != profile.Backend.OriginalString || sending.Binding.Issuer != profile.Issuer.OriginalString ||
+            sending.Binding.Client != profile.ClientId || !Guid.TryParse(sending.Binding.Event, out var day) ||
+            !profile.KnownEvents.Contains(day)) throw new InvalidOperationException("Journal transport context mismatch.");
+        var headers = new Metadata { { "authorization", "Bearer " + accessToken } };
+        if (sending.Method == "pl.umamusume.tiket.api.v1.BettingService/PurchaseCoupon")
+        {
+            var request = PurchaseCouponRequest.Parser.ParseFrom(sending.Request);
+            if (!request.ToByteArray().AsSpan().SequenceEqual(sending.Request))
+                throw new InvalidOperationException("Original request cannot be reproduced exactly.");
+            var response = await new BettingService.BettingServiceClient(channel).PurchaseCouponAsync(request, headers,
+                DateTime.UtcNow.Add(deadline), cancellationToken);
+            return response.ToByteArray();
+        }
+        if (sending.Method == "pl.umamusume.tiket.api.v1.PrintingService/ReprintCoupon")
+        {
+            var request = ReprintCouponRequest.Parser.ParseFrom(sending.Request);
+            if (!request.ToByteArray().AsSpan().SequenceEqual(sending.Request))
+                throw new InvalidOperationException("Original reprint cannot be reproduced exactly.");
+            var response = await new PrintingService.PrintingServiceClient(channel).ReprintCouponAsync(request, headers,
+                DateTime.UtcNow.Add(deadline), cancellationToken);
+            return response.ToByteArray();
+        }
+        throw new InvalidOperationException("Unknown mutation method.");
+    }
+
+    internal async Task<PrintStatus> ReadPrintStatusAsync(string job, string accessToken, CancellationToken cancellationToken) =>
+        await new PrintingService.PrintingServiceClient(channel).GetPrintStatusAsync(new PrintStatusQuery { PrintJobId = job },
+            new Metadata { { "authorization", "Bearer " + accessToken } }, DateTime.UtcNow.Add(deadline), cancellationToken);
+    internal async Task<AccountInformation> ReadAccountAsync(AccountQuery query, string accessToken, CancellationToken cancellationToken) =>
+        await new AccountService.AccountServiceClient(channel).GetAccountAsync(query,
+            new Metadata { { "authorization", "Bearer " + accessToken } }, DateTime.UtcNow.Add(deadline), cancellationToken);
 }
 
 public enum ConnectionState { Unconfigured, SignedOut, Discovering, BrowserPending, Validating, SignedIn, Connecting, Ready, Expired, Denied, Offline, Cancelled, Error, UnknownEvent, DiscoveryError, BrowserError, CallbackError, ValidationError }
