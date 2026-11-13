@@ -66,7 +66,7 @@ public sealed class CashierComposer : IDisposable
         if (day?.Definition is null || race?.Definition is null || day.Status is null || race.Status is null)
             return "Select an authorized server race in Settings.";
         if (day.Status.Phase != DayPhase.Running || race.Status.Phase != RacePhase.BettingOpen)
-            return "Quotation requires a RUNNING day and BETTING_OPEN race. Refresh server status in Settings.";
+            return day.Status.Phase != DayPhase.Running ? "Day is not running." : "Betting is not open.";
         if (!Guid.TryParse(day.Definition.RaceDayId, out _) || !Guid.TryParse(race.Definition.RaceId, out _))
             return "Server context is incomplete.";
         int arity = Arity(Draft.Pool);
@@ -133,7 +133,7 @@ public sealed class CashierComposer : IDisposable
         StatusCode.Unavailable or StatusCode.DeadlineExceeded => QuoteState.Offline, StatusCode.Cancelled => QuoteState.Cancelled, _ => QuoteState.Error };
     public static string ErrorMessage(QuoteState state) => state switch {
         QuoteState.Expired => "Session expired. Sign in again.", QuoteState.Denied => "Quotation denied. Check server role and event grants.",
-        QuoteState.Invalid => "Server rejected the selection or units.", QuoteState.Stale => "Betting status or eligibility changed. Refresh the event.",
+        QuoteState.Invalid => "Server rejected the selection or units.", QuoteState.Stale => "Race changed — check selection and get a new quote.",
         QuoteState.Limited => "Server combination or request limit reached. Reduce selection or try later.",
         QuoteState.UnknownEvent => "Authorized event or race not found.", QuoteState.Offline => "Network unavailable or deadline exceeded.",
         QuoteState.Cancelled => "Quote cancelled.", _ => "Quotation failed. No wager was placed." };

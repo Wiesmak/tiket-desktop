@@ -53,7 +53,7 @@ public sealed partial class MainPage
         renderingComposer = false;
         SetRace();
         ComposerAvailability.Visibility = composerOverview is null ? Visibility.Visible : Visibility.Collapsed;
-        ComposerAvailability.Text = composerOverview is null ? "Sign in and read an authorized known event in Settings." :
+        ComposerAvailability.Text = composerOverview is null ? "Sign in and select an authorized event." :
             "Ready";
     }
     private void OnQuoteRace(object sender, SelectionChangedEventArgs e) { if (!renderingComposer) SetRace(); }

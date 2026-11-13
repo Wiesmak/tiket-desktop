@@ -18,6 +18,14 @@ public sealed class LocalRaceDayPlan
         if (IsFrozen) throw new InvalidOperationException("Created or pending definitions cannot be edited.");
         definition = value.Clone();
     }
+    public void MoveRace(int from, int to)
+    {
+        if (IsFrozen) throw new InvalidOperationException("Frozen plans cannot be reordered.");
+        if (from < 0 || to < 0 || from >= definition.Races.Count || to >= definition.Races.Count) throw new ArgumentOutOfRangeException();
+        var race = definition.Races[from]; definition.Races.RemoveAt(from); definition.Races.Insert(to, race);
+        // The server persists race order by number; UUIDs and each roster stay unchanged.
+        for (int i = 0; i < definition.Races.Count; i++) definition.Races[i].Number = i + 1;
+    }
     public IReadOnlyList<string> Validate(IReadOnlyCollection<Guid> managedSlots, IReadOnlyCollection<string> trustedEventGrants)
     {
         var errors = new List<string>();

@@ -5,8 +5,11 @@ using Pl.Umamusume.Tiket.Api.V1;
 namespace Tiket.Desktop.Application;
 
 /// <summary>Internal prerequisite; callers must still supply a validated live session and explicit review.</summary>
-internal sealed class JournaledAdministration(AdministrationJournal journal)
+internal sealed class JournaledAdministration
 {
+    private readonly AdministrationJournal journal;
+    internal JournaledAdministration(AdministrationJournal journal) => this.journal = journal;
+
     // The durable state transition arbitrates competing calls; no retry loop is allowed here.
     internal async Task<AdministrationRecord> SendAsync(Guid intentId, AdministrationBinding authenticatedBinding,
         Func<AdministrationRecord, CancellationToken, Task<byte[]>> transmit, CancellationToken cancellationToken)

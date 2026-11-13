@@ -1,5 +1,19 @@
 ﻿# Phase 4 purchase journal and recovery
 
+## Current Phase 5 continuity and administration journal
+
+PurchaseJournal/v1 schema and exact replay bindings are unchanged. Native purchase/reprint remain enabled under verified grants, quote/review, journal durability and backend business preconditions. Historical Phase 4 records reopened successfully. Event cancellation now also suppresses old-context purchase callbacks without losing original durable outcome recording.
+
+AdministrationJournal/v1 is separate: administration.v1.dpapi, its own writer lock and encrypted durable snapshots. Records retain exact method/protobuf/key and profile/backend/issuer/client/subject/event. PREPARED and SENDING commit before dispatch. Lost replies/crash reopen UNKNOWN. Explicit recovery reuses original bytes/key/subject; exact response bytes commit before success.
+
+The optional Rejected marker records only a definitive rejection of the first transmission. An UNKNOWN replay rejection cannot disprove an earlier commit and remains UNKNOWN. A changed action/version requires fresh human review. Corruption, missing snapshot, unsupported schema, pending replacement, quota and persistence failure fail closed.
+
+LocalPlans/v1 is a separate encrypted, context-bound draft store. A frozen request/key cannot be overwritten/discarded as an editable plan. Server ACK/read-back does not make DRAFT editable. VALIDATION_PHASE_5.md records the real committed/suppressed-ACK/fresh-native-recovery proof and one-effect SQL verification. Fault injection is ignored lab tooling, never a shipping flag or automatic retry.
+
+---
+
+Historical notes below are preserved. The current Phase 5 section above governs conflicting status.
+
 `MutationJournal` and `JournaledMutation` support the native purchase/recovery/reprint controls through ConnectionSession. Controls require a verified access-token operating context, a reviewed server quote and protected local storage. Development acceptance remains incomplete; see VALIDATION_PHASE_4.md. Enabled software controls are not permission to test production funds.
 
 ConnectionSession uses `%LOCALAPPDATA%/Tiket Desktop/PurchaseJournal/v1` (subject to normal packaged-app path virtualization). It requires a local fixed drive and Windows ownership, creates a protected current-user ACL for a new directory, and rejects existing Allow entries for identities other than the current user, SYSTEM and Administrators. DPAPI protects the snapshot contents. Tests use unique temporary directories and never read ProgramData, Docker, credentials or the managed connection profile. Concurrent app instances fail closed on the directory writer lock.
@@ -23,7 +37,3 @@ No backup is created automatically. A future backup must preserve the whole encr
 The review dialog includes exact profile/backend/issuer/client, player, POS, cashier, server canonical selection/total and versions. Cancel sends nothing. Confirm rechecks the same session generation and unchanged quote before PREPARED. A pre-send failure retains a never-sent PREPARED record. Any ambiguity after SENDING remains UNKNOWN conservatively, including failed replay after a prior uncertain send. Status messages never infer no debit from GetCoupon absence or arbitrary gRPC errors. The existing server acknowledgement is saved even if sign-out happens after a reply; generation checks suppress another operator's panel updates.
 
 Native history is limited to local journal records and the exact current binding. The app never claims POS-wide history. Manual print refresh resolves only known ACKED job IDs; historical purchase print status differs from current outbox state. DISPATCHED means adapter acceptance, never paper delivery. REPRINT is a separate explicitly confirmed journaled mutation; no automatic reprint runs after an error. Backend retries can duplicate output, and the serial receipt has no visible REPRINT marker. The authorized lab uses console output only.
-
-## Phase 5 foundations — work in progress
-
-See [VALIDATION_PHASE_5.md](VALIDATION_PHASE_5.md) for current scope and open gates. Coordinated read refresh preserves unchanged quotes; it never retries PurchaseCoupon, ReprintCoupon or administration commands. AdministrationJournal is a separate encrypted schema and does not migrate PurchaseJournal v1. Independent signed role/event grants are required for future admin integration. Normal verified cashier purchase/reprint remains enabled. Phase 5 administration is not yet operationally complete.

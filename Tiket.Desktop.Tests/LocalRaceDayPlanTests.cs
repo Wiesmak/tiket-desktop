@@ -61,6 +61,17 @@ public class LocalRaceDayPlanTests
         Assert.NotEmpty(plan.Validate([Day], [Day.ToString()]));
         Assert.Throws<InvalidOperationException>(() => plan.Freeze([Day], [Day.ToString()]));
     }
+    [Fact] public void MoveRenumbersForServerOrderingAndPreservesStableIdsAndRosters()
+    {
+        var definition = Definition(); var second = definition.Races[0].Clone();
+        second.RaceId = Guid.NewGuid().ToString(); second.Number = 2; definition.Races.Add(second);
+        var plan = new LocalRaceDayPlan(definition); plan.MoveRace(1,0);
+        Assert.Equal(second.RaceId,plan.Definition.Races[0].RaceId);
+        Assert.Equal(new[]{1,2},plan.Definition.Races.Select(r=>r.Number));
+        Assert.Equal(second.Runners,plan.Definition.Races[0].Runners);
+        plan.Freeze([Day],[Day.ToString()]);
+        Assert.Throws<InvalidOperationException>(()=>plan.MoveRace(0,1));
+    }
     [Fact] public void ManagedListAloneDoesNotAuthorizeCreate()
     {
         var plan = new LocalRaceDayPlan(Definition());

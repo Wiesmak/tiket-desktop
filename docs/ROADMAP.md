@@ -1,6 +1,6 @@
 ﻿# Roadmap
 
-Adapted for the existing .NET 11 / Rider solution. Phases 0–3 are merged. Phase 4 implements reviewed journal-first purchase/recovery and backend print/reprint, with real disposable-lab evidence in VALIDATION_PHASE_4.md. Distribution and any real shared-workstation pilot remain separate gates. Earlier phase-status sections below are historical.
+Adapted for the existing .NET 11 / Rider solution. Phases 0–4 are merged. Phase 4 implements reviewed journal-first purchase/recovery and backend print/reprint, with real disposable-lab evidence in VALIDATION_PHASE_4.md. Distribution and any real shared-workstation pilot remain separate gates. Earlier phase-status sections below are historical.
 
 | Phase | Deliverable / exit gate |
 | --- | --- |
@@ -25,9 +25,9 @@ Implemented profile/session/browser and read-only generated gRPC infrastructure 
 
 Owner authorized pure Phase 3 implementation/testing after Phase 2 PR #3 merge while carrying real-service gates forward. PR #3 merged at 98ffa6d4e58883129a7b352c9fb1c19077b9a594 with successful merge CI 43245964408. Phase 3 implements Normal/Wall/Box, all four pools, exact int64 units and cancellable server quotation. See VALIDATION_PHASE_3.md for review status and evidence. Real OIDC packaged smoke and real Tiket quote remain separately unverified. Phase 4 has not started; purchases and all financial/admin mutations remain disabled. Trusted real identity/backend acceptance and durable exact-intent recovery remain mandatory before Phase 4 operational acceptance.
 
-## Phase 5 work in progress — 2026-11-13
+## Phase 5 delivery — 2026-11-13
 
-Phase 4 PR #5 merged at ea4832c22ae4c313e5ee9e894cf51a296c110633; post-merge Windows CI 43382833996 passed. Phase 5 is not operationally accepted. See VALIDATION_PHASE_5.md for implemented foundations and outstanding acceptance work.
+Functional native administration, encrypted local plans, immutable create, lifecycle/onboarding and coordinated cashier/account/print refresh are implemented and exercised against a newly provisioned disposable event. See VALIDATION_PHASE_5.md. PR #6 stays unmerged; final-head green CI and owner review govern delivery. Phase 6 is not started and must wait for Phase 5 merge/post-merge checks.
 
 ## Phase 6 binding acceptance: settled winning coupons
 

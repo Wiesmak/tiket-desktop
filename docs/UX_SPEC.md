@@ -1,5 +1,19 @@
 ﻿# Native shell UX
 
+## Current Phase 5 staff workflow
+
+The builder is functional: provisioned event selection; basics; ordered races with stable UUIDs; ordered horse rosters with string program labels; four integer-stake pool rules; encrypted Save/Resume/Discard; complete request/key review. Moving a race updates local race order/numbers while preserving IDs. Freeze locks the original request. Inspect saved plan is read-only after creation; it does not edit or replace server DRAFT.
+
+Lifecycle controls follow server phases/versions. Enrollment and opening funding require exact player scope, integer units and reviewed confirmation. Additional funding requires an enrolled, unwagered pre-start account. AUDITOR-only player listing and server account balances are distinct from local plans. There is no invented player-name directory or separate promotional wallet.
+
+Shared event selection, sign-in and operations schedule bounded automatic reads. Identical snapshots preserve draft/quote/focus; materially changed terms require explicit new quotation/review. Offline shows stale context; denial clears unauthorized data; Retry is exceptional. Current print state and compact receipts refresh automatically. Technical IDs/provenance are in Details/Diagnostics. Recovery/reprint have one short relevant warning.
+
+The native Mica/title/NavigationView shell, wide labeled navigation, 24/12 gutters, 900 effective-content breakpoint, input caps, keyboard access and reduced-motion behavior remain. The validation record distinguishes live editable Save/Resume from the created-plan read-only matrix; broader accessibility/deployment certification remains later work.
+
+---
+
+Historical notes below are preserved. The current Phase 5 section above governs conflicting status.
+
 ## Current Phase 4 cashier flow
 
 The native composer now leads to an explicit actual-debit review with profile/backend/issuer/client, player UUID, verified POS/cashier, server canonical selection, integer stake/currency and versions. Cancel is the default focused action. PREPARING, SENDING, ACKED and UNKNOWN remain distinct; replay explains that it can complete a purchase. Native controls ship enabled only when their quote, grant and storage prerequisites are met. No fixture identifiers are hardcoded into shipping business logic.
@@ -41,7 +55,3 @@ Settings contains explicit managed-profile selection, visible endpoint/issuer/pu
 Disconnected mode shows guidance and disabled actions. LIVE / SERVER mode replaces fictional player/runner/NumberBox inputs, never mixing demo runners into real quotation. Latest-print MOCK stays above the editor; recent tickets say MOCK — no real tickets. Server race labels include number, title, course and phase. Only configured pools are offered. Exacta/Trifecta have separate ordered slots; Quinella explains either order. WIN has no Wall mode. Box communicates its minimum count. Native ComboBox popups and bounded-height multi-select ListView handle large rosters; scratched rows remain visible and disabled. String program numbers retain leading zeroes. Refresh preserves choices for the same race, including invalid scratched choices.
 
 Units use TextBox and exact int64 validation with inline feedback. Explicit Get quote (Alt+Q) shows cancellable progress; edits do not transmit. Selectable summary text displays server canonical choices, integer monetary units/currency, counts and versions with receipt time and non-binding wording. Review purchase stays disabled. No unavailable balance is shown. Shell gutters, primary caps, pane behavior, themes and transitions remain unchanged. See CASHIER_QUOTES.md and VALIDATION_PHASE_3.md for semantics and measured coverage.
-
-## Phase 5 foundations — work in progress
-
-See [VALIDATION_PHASE_5.md](VALIDATION_PHASE_5.md) for current scope and open gates. Coordinated read refresh preserves unchanged quotes; it never retries PurchaseCoupon, ReprintCoupon or administration commands. AdministrationJournal is a separate encrypted schema and does not migrate PurchaseJournal v1. Independent signed role/event grants are required for future admin integration. Normal verified cashier purchase/reprint remains enabled. Phase 5 administration is not yet operationally complete.

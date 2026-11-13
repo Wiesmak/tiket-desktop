@@ -155,8 +155,10 @@ public sealed partial class MainPage
         {
             CommitRace(); var at = planRaceIndex;
             if (at < 0 || at + delta < 0 || at + delta >= localDefinition.Races.Count) return;
-            var race = localDefinition.Races[at]; localDefinition.Races.RemoveAt(at); localDefinition.Races.Insert(at + delta, race);
-            RenderPlanRaces(at + delta);
+            if (localPlan?.IsFrozen == true) throw new InvalidOperationException("Frozen plans cannot be reordered.");
+            var reordered = new LocalRaceDayPlan(localDefinition); reordered.MoveRace(at, at + delta);
+            localDefinition = reordered.Definition; RenderPlanRaces(at + delta);
+            PlanValidation.Text = "Race moved · numbers updated";
         }
         catch (Exception error) { PlanValidation.Text = error.Message; }
     }

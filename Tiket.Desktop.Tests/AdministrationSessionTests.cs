@@ -32,6 +32,7 @@ public class AdministrationSessionTests
         public TaskCompletionSource<byte[]>? Delayed;
         public EnrollmentInformation? Enrollment;
         public AccountInformation? Account;
+        public TaskCompletionSource<AccountInformation>? PendingAccount;
         public byte[]? LastRequest;
         public string? LastKey;
         private readonly Dictionary<string,byte[]> acks = [];
@@ -74,7 +75,7 @@ public class AdministrationSessionTests
         }
         public Task<EnrollmentInformation> GetEnrollmentAsync(EnrollmentQuery query,string token,CancellationToken ct) =>
             Enrollment is {} value ? Task.FromResult(value.Clone()):Task.FromException<EnrollmentInformation>(new RpcException(new Status(StatusCode.NotFound,"")));
-        public Task<AccountInformation> GetAccountAsync(AccountQuery query,string token,CancellationToken ct)=>Task.FromResult(Account!.Clone());
+        public Task<AccountInformation> GetAccountAsync(AccountQuery query,string token,CancellationToken ct)=>PendingAccount?.Task??Task.FromResult(Account!.Clone());
         public Task<PlayerList> ListPlayersAsync(DayQuery query,string token,CancellationToken ct)=>Task.FromResult(new PlayerList { Players={Enrollment is null?[]:new[]{Enrollment.Clone()}} });
         public void Dispose() {}
     }
@@ -183,6 +184,27 @@ public class AdministrationSessionTests
     [InlineData("-1",false)] [InlineData("+1",false)] [InlineData("1.0",false)] [InlineData(" 1",false)] [InlineData("١",false)]
     public void ExactNonnegativeFunding(string text,bool valid)=>Assert.Equal(valid,ConnectionSession.TryFunding(text,out _));
 
+    [Fact] public async Task LateAccountCannotPopulateAnotherPlayerSelection()
+    {
+        using var f=new Fixture();await f.Create();
+        f.Session.SelectPlayer(QuoteTests.Horses[0]);await f.Confirm(f.Session.ReviewEnrollment(QuoteTests.Horses[0],100,0,false));
+        f.Server.PendingAccount=new();var read=f.Session.ReadSelectedPlayerAsync(default);
+        f.Session.SelectPlayer(QuoteTests.Horses[1]);
+        f.Server.PendingAccount.SetResult(f.Server.Account!.Clone());
+        Assert.False(await read);Assert.Null(f.Session.CurrentAccount);Assert.Null(f.Session.Enrollment);
+    }
+    [Fact] public void EditableDraftDiscardRemovesOnlyItsOwnScope()
+    {
+        var directory=Path.Combine(Path.GetTempPath(),Guid.NewGuid().ToString());
+        try
+        {
+            var binding=new AdministrationBinding("p","https://api.invalid","https://issuer.invalid","c","actor",ConnectionTests.Day.ToString());
+            var store=new LocalPlanStore(directory);store.Save(binding,new(Definition()));
+            var other=binding with { Subject="other" };store.Save(other,new(Definition()));
+            store.Discard(binding);Assert.Null(store.Load(binding));Assert.NotNull(store.Load(other));
+        }
+        finally { System.IO.Directory.Delete(directory,true); }
+    }
     [Fact] public void EncryptedDraftScopeFreezeCorruptionAndPendingFailClosed() {
         var directory=Path.Combine(Path.GetTempPath(),Guid.NewGuid().ToString());
         try {

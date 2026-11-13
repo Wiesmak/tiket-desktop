@@ -151,8 +151,9 @@ public sealed partial class ConnectionSession
     {
         var day = Overview?.Day ?? throw new InvalidOperationException("Current day required.");
         if (day.Status.Phase is not (DayPhase.Draft or DayPhase.Ready) || paid < 0 || promotional < 0 ||
-            (additional && paid == 0 && promotional == 0) || !Guid.TryParseExact(player, "D", out _))
+            (additional && paid == 0 && promotional == 0) || !Guid.TryParseExact(player, "D", out var playerId))
             throw new InvalidOperationException("Check player, whole funding units and pre-start phase.");
+        player = playerId.ToString("D");
         checked { _ = paid + promotional; }
         IMessage request;
         if (additional)

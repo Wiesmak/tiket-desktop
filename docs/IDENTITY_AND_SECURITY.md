@@ -1,5 +1,17 @@
 ﻿# Identity and security boundaries
 
+## Current Phase 5 authorization and storage
+
+AdministrationGrants validates the signed RS256 API JWT issuer/audience/lifetime and equality with the signed ID-token subject. EVENT_ADMIN does not require CASHIER, POS or cashier identifier. Enrollment/funding require CASHIER and exact event/player grants, even for a combined AUDITOR. Account/enrollment reads follow scoped auditor/cashier permissions; ListPlayers is AUDITOR-only. Server authorization remains final. Create still requires the exact new event grant and managed selector.
+
+Encrypted drafts bind profile/backend/issuer/client/subject/event; administrative records retain exact method/payload/key/expected versions. No bearer, password or refresh material is saved. Protected fixed-storage ACLs, writer locks, encrypted pending snapshots and durable replacement fail closed. Wrong-subject records are neither disclosed nor replayed. Actor/event switches cancel work, retain original durable outcomes and suppress stale display callbacks.
+
+The explicitly owner-approved disposable ADMIN_EDIT change and old attribute/profile backups are recorded in VALIDATION_PHASE_5.md and the ignored handoff. No roles, sub mapper, profile scope, signing keys, TLS trust or PKCE were weakened. Keep new scopes/selectors while their durable records require recovery. DPAPI remains per Windows user, not cryptographic isolation between OIDC cashiers sharing one Windows login.
+
+---
+
+Historical notes below are preserved. The current Phase 5 section above governs conflicting status.
+
 ## Current Phase 4
 
 Purchases require a separately validated RS256 API access token whose subject equals the signed OIDC ID-token subject, and exact CASHIER/event/player/POS/cashier claims. `sub` is never inferred from a label or used as `tiket_cashier`. Local choice is not a grant. The native browser request uses Code/PKCE, randomized loopback callback and an explicit login prompt; local sign-out preserves browser SSO, which may need provider-side sign-out before a different account is selected. No password grant or fixture credential exists in shipping code.
@@ -33,7 +45,3 @@ QuoteCoupon is the only newly invoked RPC. It uses the managed backend channel, 
 Editor revision plus session generation and cloned event/race context prevent old results crossing selections, refreshed rosters/statuses, operators or profiles. Units parse directly as positive int64 ASCII text. Pricing/canonical terms, versions and opaque confirmation remain exactly from the server in memory only, without reservation or durable financial intent. Errors are sanitized; no raw server message, token or sensitive payload is logged or persisted.
 
 Purchase/reprint/admin/funding/settlement/withdrawal calls, token persistence, offline betting and printer access remain absent. Phase 4 requires real packaged OIDC/transport acceptance and a separately reviewed durable encrypted exact-request/idempotency recovery design. Synthetic OIDC, HTTP/2 fixtures and injected visual evidence do not close real-service gates.
-
-## Phase 5 foundations — work in progress
-
-See [VALIDATION_PHASE_5.md](VALIDATION_PHASE_5.md) for current scope and open gates. Coordinated read refresh preserves unchanged quotes; it never retries PurchaseCoupon, ReprintCoupon or administration commands. AdministrationJournal is a separate encrypted schema and does not migrate PurchaseJournal v1. Independent signed role/event grants are required for future admin integration. Normal verified cashier purchase/reprint remains enabled. Phase 5 administration is not yet operationally complete.

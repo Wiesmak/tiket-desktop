@@ -66,6 +66,33 @@ public class AdministrationJournalTests
             Assert.Equal(0, calls);
         } finally { Directory.Delete(dir, true); }
     }
+    [Theory] [InlineData("corrupt")] [InlineData("missing")] [InlineData("pending")] [InlineData("schema")]
+    public void DamagedOrIncompleteAdministrationSnapshotsFailClosed(string failure)
+    {
+        var dir=Path.Combine(Path.GetTempPath(),Guid.NewGuid().ToString());
+        try
+        {
+            using(var journal=new AdministrationJournal(dir))journal.Prepare(Record());
+            var path=Path.Combine(dir,"administration.v1.dpapi");
+            if(failure=="corrupt")File.WriteAllBytes(path,[1,2,3]);
+            if(failure=="missing")File.Delete(path);
+            if(failure=="pending")File.WriteAllBytes(path+".pending",[1,2,3]);
+            if(failure=="schema")File.WriteAllBytes(path,new CurrentUserJournalProtection().Protect(System.Text.Encoding.UTF8.GetBytes("{\"Schema\":99,\"Records\":[]}")));
+            Assert.ThrowsAny<Exception>(()=>new AdministrationJournal(dir));
+        } finally { Directory.Delete(dir,true); }
+    }
+    [Fact] public void AdministrationQuotaFailurePoisonsStorageBeforeAnyDispatch()
+    {
+        var dir=Path.Combine(Path.GetTempPath(),Guid.NewGuid().ToString());var r=Record();
+        try
+        {
+            using var journal=new AdministrationJournal(dir);
+            var request=new CreateRaceDayRequest { Definition=new() { RaceDayId=r.Binding.Event,RulesVersion=new string('x',7*1024*1024) },IdempotencyKey=r.Key };
+            var large=r with { Method=AdministrationWire.Prefix+"RaceDayService/CreateRaceDay",Request=request.ToByteArray() };
+            Assert.Throws<IOException>(()=>journal.Prepare(large));
+            Assert.Throws<IOException>(()=>journal.MarkSending(r.Id,r.Binding));
+        } finally { Directory.Delete(dir,true); }
+    }
     [Fact] public void SchemaAndMethodAreIndependentOfPurchaseJournal()
     {
         var r = Record();
