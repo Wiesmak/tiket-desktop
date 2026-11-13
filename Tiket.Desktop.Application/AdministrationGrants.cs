@@ -6,6 +6,7 @@ namespace Tiket.Desktop.Application;
 
 internal sealed record AdministrationGrants(string Subject, string[] Roles, string[] Events, string[] Players)
 {
+    internal string? Player { get; init; }
     internal DateTimeOffset ExpiresAt { get; init; } = DateTimeOffset.MaxValue;
     public override string ToString() => "Verified administration grants";
     internal static async Task<AdministrationGrants?> ValidateAsync(string accessToken, string subject,
@@ -26,8 +27,9 @@ internal sealed record AdministrationGrants(string Subject, string[] Roles, stri
                 !jwt.TryGetPayloadValue<string[]>("tiket_roles", out var roles) ||
                 !jwt.TryGetPayloadValue<string[]>("tiket_events", out var events)) return null;
             jwt.TryGetPayloadValue<string[]>("tiket_players", out var players);
+            jwt.TryGetPayloadValue<string>("tiket_player", out var player);
             return new(subject, roles, events, players ?? [])
-            { ExpiresAt = new DateTimeOffset(jwt.ValidTo, TimeSpan.Zero) };
+            { Player = player, ExpiresAt = new DateTimeOffset(jwt.ValidTo, TimeSpan.Zero) };
         }
         catch { return null; }
     }

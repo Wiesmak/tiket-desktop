@@ -296,6 +296,21 @@ public class GrpcTransportTests
                     fixture.AdministrationRequest = wire.AsSpan(5).ToArray();
                     result = Phase6Tests.Reply(context.Request.Path.Value!.TrimStart('/'), fixture.AdministrationRequest);
                 }
+                else if (method is "CashOut" or "FinalizeRaceDay" or "CompleteRaceDay" or "CloseRaceDay" or "GetWithdrawalQuote" or "GetCashoutReceipt" or "ListAccountMovements") {
+                    fixture.AdministrationPath = context.Request.Path;
+                    fixture.AdministrationRequest = wire.AsSpan(5).ToArray();
+                    if (method == "CashOut") {
+                        var c = CashOutRequest.Parser.ParseFrom(fixture.AdministrationRequest);
+                        result = new CashoutReceipt { RaceDayId=c.RaceDayId,PlayerId=c.PlayerId,AccountVersion=c.ExpectedAccountVersion+1,Currency="PLN",CashedOutAt="timestamp",ReceiptReference="receipt" };
+                    } else result = method switch {
+                        "GetWithdrawalQuote" => new WithdrawalQuoteInformation(),
+                        "GetCashoutReceipt" => new CashoutReceipt(),
+                        "ListAccountMovements" => new AccountMovements(),
+                        _ => new DayAcknowledgement { RaceDayId=DayCommand.Parser.ParseFrom(fixture.AdministrationRequest).RaceDayId,
+                            Version=DayCommand.Parser.ParseFrom(fixture.AdministrationRequest).ExpectedVersion+1,
+                            Phase=method=="FinalizeRaceDay"?DayPhase.Finalizing:method=="CompleteRaceDay"?DayPhase.Completed:DayPhase.Closed }
+                    };
+                }
                 else if (method is "GetResult" or "GetSettlement" or "ListRaceLegResolutions" or "GetCoupon")
                 {
                     fixture.AdministrationPath = context.Request.Path;

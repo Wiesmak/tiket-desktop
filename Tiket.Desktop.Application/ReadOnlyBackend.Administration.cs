@@ -28,6 +28,14 @@ public sealed partial class ReadOnlyBackend : IAdministrationBackend, IAccountBa
         var until = DateTime.UtcNow.Add(deadline);
         IMessage response = saved.Method switch
         {
+            AdministrationWire.Prefix + "AccountService/CashOut" => await new AccountService.AccountServiceClient(channel)
+                .CashOutAsync(CashOutRequest.Parser.ParseFrom(saved.Request), headers, until, cancellation),
+            AdministrationWire.Prefix + "RaceDayService/FinalizeRaceDay" => await new RaceDayService.RaceDayServiceClient(channel)
+                .FinalizeRaceDayAsync(DayCommand.Parser.ParseFrom(saved.Request), headers, until, cancellation),
+            AdministrationWire.Prefix + "RaceDayService/CompleteRaceDay" => await new RaceDayService.RaceDayServiceClient(channel)
+                .CompleteRaceDayAsync(DayCommand.Parser.ParseFrom(saved.Request), headers, until, cancellation),
+            AdministrationWire.Prefix + "RaceDayService/CloseRaceDay" => await new RaceDayService.RaceDayServiceClient(channel)
+                .CloseRaceDayAsync(DayCommand.Parser.ParseFrom(saved.Request), headers, until, cancellation),
             AdministrationWire.Prefix + "RaceService/ScratchHorse" => await new RaceService.RaceServiceClient(channel)
                 .ScratchHorseAsync(ScratchHorseRequest.Parser.ParseFrom(saved.Request), headers, until, cancellation),
             AdministrationWire.Prefix + "RaceService/VoidRace" => await new RaceService.RaceServiceClient(channel)

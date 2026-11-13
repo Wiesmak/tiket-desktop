@@ -4,7 +4,7 @@ using Pl.Umamusume.Tiket.Api.V1;
 
 namespace Tiket.Desktop.Application;
 
-public enum AdministrationOperation { CreateRaceDay, PublishRaceDay, StartRaceDay, OpenBetting, CloseBetting, EnrollPlayer, AddOpeningFunding, ScratchHorse, VoidRace, SubmitResult, VerifyResult, SettleRace }
+public enum AdministrationOperation { CreateRaceDay, PublishRaceDay, StartRaceDay, OpenBetting, CloseBetting, EnrollPlayer, AddOpeningFunding, ScratchHorse, VoidRace, SubmitResult, VerifyResult, SettleRace, FinalizeRaceDay, CompleteRaceDay, CloseRaceDay, CashOut }
 public sealed record AdministrationReview(Guid Id, string Title, string Payload);
 public sealed record LocalAdministration(Guid Id, string Operation, string State, bool CanRecover);
 
@@ -30,6 +30,7 @@ public sealed partial class ConnectionSession
     public string AccountReadStatus { get; private set; } = "";
     public DateTimeOffset? AccountReadAt { get; private set; }
     public AccountInformation? CurrentAccount => account?.Clone();
+    public string PlayerAccountSummary { get; private set; } = "";
     public PlayerList? EnrolledPlayers => players?.Clone();
     public IReadOnlyList<Guid> ProvisionedEvents => Profile?.KnownEvents.Where(id =>
         material?.AdministrationGrants?.Events.Contains(id.ToString()) == true).ToArray() ?? [];
@@ -48,7 +49,12 @@ public sealed partial class ConnectionSession
     {
         if (AdministrationContext(r.Binding.Event) != r.Binding) throw new InvalidOperationException("Original operator and connection required.");
         var grants = material!.AdministrationGrants!;
-        if (r.Method.Contains("EnrollmentService/", StringComparison.Ordinal))
+        if (r.Method == AdministrationWire.Prefix + "AccountService/CashOut")
+        {
+            var cashout = CashOutRequest.Parser.ParseFrom(r.Request);
+            if (!grants.Roles.Contains("CASHIER") || !grants.Players.Contains(cashout.PlayerId)) throw new InvalidOperationException("Cashier access for this player is required.");
+        }
+        else if (r.Method.Contains("EnrollmentService/", StringComparison.Ordinal))
         {
             var player = r.Method.EndsWith("/EnrollPlayer", StringComparison.Ordinal) ?
                 EnrollPlayerRequest.Parser.ParseFrom(r.Request).PlayerId : AddOpeningFundingRequest.Parser.ParseFrom(r.Request).PlayerId;
@@ -90,11 +96,11 @@ public sealed partial class ConnectionSession
     }
     private void ResetEvent()
     {
-        ResetResults();
+        ResetResults(); ResetAccounts();
         inspectedPrintJobs.Clear();
         eventRevision++; eventLifetime.Cancel(); eventLifetime.Dispose(); eventLifetime = new();
         administrationReview = null; UnusedEvent = null; selectedEvent = null;
-        enrollment = null; account = null; players = null; selectedPlayer = null; playerReadDenied = false;
+        PlayerAccountSummary = ""; enrollment = null; account = null; players = null; selectedPlayer = null; playerReadDenied = false;
         AccountReadStatus = ""; AccountReadAt = null; AdministrationStatus = ""; PurchaseStatus = material?.OperatingGrants is null ? "" : "Ready";
         if (material is not null) State = ConnectionState.SignedIn;
         Overview = null; LastSynchronizedAt = null;
@@ -104,7 +110,7 @@ public sealed partial class ConnectionSession
     {
         var next = Guid.TryParseExact(player, "D", out var id) ? id.ToString() : null;
         if (next == selectedPlayer) return;
-        selectedPlayer = next; enrollment = null; account = null; playerReadDenied = false; AccountReadStatus = next is null ? "" : "Loading account…"; AccountReadAt = null;
+        ResetAccounts(); selectedPlayer = next; enrollment = null; account = null; playerReadDenied = false; AccountReadStatus = next is null ? "" : "Loading account…"; AccountReadAt = null;
         // A different account requires a new financial review, but does not alter a wager draft.
         review = null; administrationReview = null; Changed?.Invoke(); RefreshRequested?.Invoke();
     }
@@ -119,10 +125,10 @@ public sealed partial class ConnectionSession
     }
     public AdministrationReview ReviewDay(AdministrationOperation operation)
     {
-        if (operation is not (AdministrationOperation.PublishRaceDay or AdministrationOperation.StartRaceDay))
+        if (operation is not (AdministrationOperation.PublishRaceDay or AdministrationOperation.StartRaceDay or AdministrationOperation.FinalizeRaceDay or AdministrationOperation.CompleteRaceDay or AdministrationOperation.CloseRaceDay))
             throw new ArgumentException("Unsupported day operation.");
         var day = Overview?.Day ?? throw new InvalidOperationException("Current day required.");
-        var expected = operation == AdministrationOperation.PublishRaceDay ? DayPhase.Draft : DayPhase.Ready;
+        var expected = operation switch { AdministrationOperation.PublishRaceDay => DayPhase.Draft, AdministrationOperation.StartRaceDay => DayPhase.Ready, AdministrationOperation.FinalizeRaceDay => DayPhase.Running, AdministrationOperation.CompleteRaceDay => DayPhase.Finalizing, _ => DayPhase.Completed };
         if (day.Status.Phase != expected) throw new InvalidOperationException("Day phase changed.");
         return ReviewAdministration(operation, new DayCommand { RaceDayId = day.Definition.RaceDayId,
             ExpectedVersion = day.Status.Version, IdempotencyKey = Guid.NewGuid().ToString() }, AdministrationContext(day.Definition.RaceDayId));
@@ -173,7 +179,8 @@ public sealed partial class ConnectionSession
     {
         if (mutationBusy || Busy || administrationReview is not null) throw new InvalidOperationException("Finish the current review first.");
         var service = operation switch {
-            AdministrationOperation.CreateRaceDay or AdministrationOperation.PublishRaceDay or AdministrationOperation.StartRaceDay => "RaceDayService/",
+            AdministrationOperation.CashOut => "AccountService/",
+            AdministrationOperation.CreateRaceDay or AdministrationOperation.PublishRaceDay or AdministrationOperation.StartRaceDay or AdministrationOperation.FinalizeRaceDay or AdministrationOperation.CompleteRaceDay or AdministrationOperation.CloseRaceDay => "RaceDayService/",
             AdministrationOperation.OpenBetting or AdministrationOperation.CloseBetting or AdministrationOperation.ScratchHorse or AdministrationOperation.VoidRace => "RaceService/",
             AdministrationOperation.SubmitResult or AdministrationOperation.VerifyResult or AdministrationOperation.SettleRace => "ResultService/", _ => "EnrollmentService/" };
         var record = new AdministrationRecord(1, Guid.NewGuid(), binding, AdministrationWire.Prefix + service + operation,
@@ -210,6 +217,12 @@ public sealed partial class ConnectionSession
         { if (UnusedEvent?.ToString() != r.Binding.Event) throw new InvalidOperationException("Event slot changed."); return; }
         var day = Overview?.Day ?? throw new InvalidOperationException("Current day required.");
         if (day.Definition.RaceDayId != r.Binding.Event) throw new InvalidOperationException("Event changed.");
+        if (r.Method == AdministrationWire.Prefix + "AccountService/CashOut") {
+            var cashout = CashOutRequest.Parser.ParseFrom(r.Request);
+            if (selectedPlayer != cashout.PlayerId || account?.PlayerId != cashout.PlayerId || account.CashedOut || account.AccountVersion != cashout.ExpectedAccountVersion || day.Status.Version != cashout.ExpectedDayVersion || day.Status.Phase != DayPhase.Completed)
+                throw new InvalidOperationException("Account or day changed — review again.");
+            return;
+        }
         if (Phase6Wire.IsMutation(r.Method))
         {
             var command = Phase6Wire.Command(Phase6Wire.Parse(r.Method, r.Request));
@@ -274,7 +287,13 @@ public sealed partial class ConnectionSession
             if (actor == generation && context == eventRevision)
             {
                 var saved = administrationJournal!.Read(record.Binding).Single(x => x.Id == record.Id);
-                AdministrationStatus = saved.Rejected ? (error.Code == StatusCode.Aborted ? "Version changed — review a new action." : "Command rejected.") : "Uncertain — recover";
+                AdministrationStatus = saved.Rejected ? (error.Code == StatusCode.Aborted ? "Version changed — review a new action." :
+                    error.Code == StatusCode.FailedPrecondition ? record.Method.Split('/').Last() switch {
+                        "FinalizeRaceDay" => "Close all open betting before finalizing.",
+                        "CompleteRaceDay" => "Settle or void every race and resolve all active legs before completing.",
+                        "CloseRaceDay" => "Read the authorized full player list; record cashout for every enrolled account before closing.",
+                        "CashOut" => "Cashout requires a completed day and an open account. Refresh the account and receipt.",
+                        _ => "Server preconditions blocked this action." } : "Command rejected.") : "Uncertain — recover";
                 if (error.Code == StatusCode.Unauthenticated) { Clear(); State = ConnectionState.Expired; }
                 else if (error.Code == StatusCode.PermissionDenied) { Overview = null; enrollment = null; account = null; players = null; State = ConnectionState.Denied; }
             }
@@ -307,12 +326,12 @@ public sealed partial class ConnectionSession
     {
         if (selectedPlayer is not { } player || selectedEvent is not { } day || playerReadDenied || material is null) return true;
         var binding = AdministrationContext(day.ToString()); var grants = material.AdministrationGrants!;
-        if (!(grants.Roles.Contains("AUDITOR") || (grants.Roles.Contains("CASHIER") && grants.Players.Contains(player))))
+        if (!(grants.Roles.Contains("AUDITOR") || (grants.Roles.Contains("CASHIER") && grants.Players.Contains(player)) || (grants.Roles.Contains("PLAYER") && grants.Player == player)))
         { enrollment = null; account = null; playerReadDenied = true; AccountReadStatus = "Access denied"; return true; }
         backend ??= backendFactory(Profile!);
         if (backend is not IAdministrationBackend admin || backend is not IAccountBackend accounts) return false;
         var actor = generation; var context = eventRevision;
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, lifetime.Token, eventLifetime.Token);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, lifetime.Token, eventLifetime.Token, accountLifetime.Token);
         try
         {
             var nextEnrollment = await admin.GetEnrollmentAsync(new() { RaceDayId = binding.Event, PlayerId = player }, material.AccessToken, linked.Token);
@@ -325,6 +344,7 @@ public sealed partial class ConnectionSession
                 if (administrationReview?.Record.Method.EndsWith("/AddOpeningFunding", StringComparison.Ordinal) == true) administrationReview = null;
             }
             if (account is null && administrationReview?.Record.Method.EndsWith("/EnrollPlayer", StringComparison.Ordinal) == true) administrationReview = null;
+            if (nextAccount.RaceDayId != binding.Event || nextAccount.PlayerId != player) throw new IOException("Account identity mismatch.");
             enrollment = nextEnrollment.Clone(); account = nextAccount.Clone(); AccountReadAt = DateTimeOffset.Now; AccountReadStatus = ""; Changed?.Invoke(); return true;
         }
         catch (RpcException error)
@@ -334,6 +354,7 @@ public sealed partial class ConnectionSession
             else if (error.StatusCode is StatusCode.PermissionDenied or StatusCode.NotFound)
             { enrollment = null; account = null; playerReadDenied = true; AccountReadStatus = error.StatusCode == StatusCode.PermissionDenied ? "Access denied" : "Not enrolled"; }
             else AccountReadStatus = "Offline";
+            ResetAccounts();
             Changed?.Invoke();
             return error.StatusCode is StatusCode.PermissionDenied or StatusCode.NotFound;
         }
@@ -350,6 +371,17 @@ public sealed partial class ConnectionSession
             var result = await transport.ListPlayersAsync(new() { RaceDayId = binding.Event }, material!.AccessToken, eventLifetime.Token);
             CheckExpiry();
             if (actor != generation || context != eventRevision) return;
+            var summaries = new List<string>();
+            if (backend is IAccountBackend accounts && result.Players.Count <= 1000) {
+                foreach (var player in result.Players) {
+                    var a = await accounts.GetAccountAsync(new() { RaceDayId=binding.Event, PlayerId=player.PlayerId },material!.AccessToken,eventLifetime.Token);
+                    if (a.RaceDayId!=binding.Event || a.PlayerId!=player.PlayerId) throw new IOException("Player account identity mismatch.");
+                    summaries.Add($"{a.PlayerId} · {a.Balance} {a.Currency} · v{a.AccountVersion} · {(a.CashedOut ? "Cashed out" : "Open")}");
+                }
+            }
+            CheckExpiry();
+            if(actor!=generation || context!=eventRevision) return;
+            PlayerAccountSummary = summaries.Count==result.Players.Count ? $"{summaries.Count} enrolled accounts\n" + string.Join("\n",summaries) : "Account summary unavailable; full player list loaded.";
             players = result.Clone(); Changed?.Invoke();
         }
         catch (RpcException error)
