@@ -1,5 +1,13 @@
 ﻿# Identity and security boundaries
 
+## Current Phase 4
+
+Purchases require a separately validated RS256 API access token whose subject equals the signed OIDC ID-token subject, and exact CASHIER/event/player/POS/cashier claims. `sub` is never inferred from a label or used as `tiket_cashier`. Local choice is not a grant. The native browser request uses Code/PKCE, randomized loopback callback and an explicit login prompt; local sign-out preserves browser SSO, which may need provider-side sign-out before a different account is selected. No password grant or fixture credential exists in shipping code.
+
+Encrypted financial records require exact subject/profile/backend/issuer/client/event/POS binding and current player/cashier rights before details or replay. Reduced rights hide old details while preserving the original intent for restored rights/escalation. Dialogs close on identity/profile change or expiry. DPAPI CurrentUser protects Windows users, not OIDC cashiers sharing one Windows account; another process under that account can decrypt. Separate Windows accounts or an approved isolated-key design are required before a shared-workstation pilot.
+
+PREPARED/SENDING persistence precedes every send. Timeout, cancellation, outage, mismatched ACK and ACK-save failure do not imply no debit. Original bytes/key/coupon are never regenerated for recovery. Storage failure quarantines the journal and prevents dispatch. The backend alone owns funds, authorization and console/serial dispatch. The test lab uses console output; no COM device was opened. See SAFE_PURCHASE_JOURNAL.md and VALIDATION_PHASE_4.md. Older phase-specific absence/provisional statements below are historical.
+
 Adapted from the inception security design. Phase 0 implements no authentication, credential storage, backend calls or local financial journal.
 
 Future trusted managed profiles specify HTTPS backend, exact issuer, public native client ID, API audience/scopes, redirect policy and known event/POS references. Do not accept arbitrary issuer changes during login, embed a client secret, disable certificate validation or send an ID token as a backend bearer token. Browser Authorization Code + PKCE requires state/nonce verification and backend-compatible access tokens. The backend currently expects RS256, configured issuer/JWKS/audience, exp/nbf/sub and trusted claim mappings.

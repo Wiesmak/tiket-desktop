@@ -6,7 +6,11 @@ namespace Tiket_Desktop;
 
 public sealed partial class MainPage
 {
-    private readonly ConnectionSession connection = new();
+    private readonly ConnectionSession connection = new(new NativeOidcLogin(async uri =>
+    {
+        if (!await Windows.System.Launcher.LaunchUriAsync(uri))
+            throw new InvalidOperationException("Windows could not activate the system browser.");
+    }));
     private readonly DispatcherTimer expiryTimer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     private void InitializeConnection()
@@ -61,7 +65,8 @@ public sealed partial class MainPage
     }
     private void RenderConnection()
     {
-        SessionStatus.Text = connection.State + " · " + ConnectionErrors.Message(connection.State);
+        SessionStatus.Text = connection.State + " · " + ConnectionErrors.Message(connection.State) +
+            (connection.SafeDiagnostic is null ? "" : "\n" + connection.SafeDiagnostic);
         OperatorStatus.Text = connection.Subject is null ? "" : $"Operator: {connection.Subject} · expires {connection.ExpiresAt:g}";
         PingDetails.Text = connection.PingStatus ?? "";
         var live = connection.Overview;
@@ -80,5 +85,6 @@ public sealed partial class MainPage
         }
         RenderConnectionControls();
         RefreshComposerContext();
+        RenderPurchases();
     }
 }

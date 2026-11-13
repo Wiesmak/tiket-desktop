@@ -1,6 +1,6 @@
 ﻿# Roadmap
 
-Adapted from the inception roadmap for the existing .NET 11 / Rider solution. Each phase needs a separate review and explicit scope. Phases 0–2 are merged; Phase 2 real-service integration remains provisional. Phase 3 is scoped to read-only quotation.
+Adapted for the existing .NET 11 / Rider solution. Phases 0–3 are merged. Phase 4 implements reviewed journal-first purchase/recovery and backend print/reprint, with real disposable-lab evidence in VALIDATION_PHASE_4.md. Distribution and any real shared-workstation pilot remain separate gates. Earlier phase-status sections below are historical.
 
 | Phase | Deliverable / exit gate |
 | --- | --- |

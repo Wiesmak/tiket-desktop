@@ -1,0 +1,72 @@
+﻿# Phase 4 validation
+
+Started 2026-11-12; continued 2026-11-13, Europe/Warsaw. This is development acceptance against the owner's existing disposable lab, not production, physical-paper or signed-deployment acceptance.
+
+## Source and environment
+
+- Desktop branch: `feat/phase4-safe-purchase-print`, created from freshly fetched `origin/master`, `ed8580c3307f6a12c2e753c81e6e2dfa42318f04`, merged Phase 3 PR #4. Phase 3 final-head CI 43251665458 and merge CI 43302757603 are historical successful baselines (133 tests).
+- Implementation commit: `2f0c36a57e2befb4c22d06e1cdda4d727cff5f45`. Its evidence-only successor records this immutable code head; final delivery SHA/PR/hosted CI are supplied in the handoff and PR metadata.
+- Contract snapshot remains pinned to backend upstream `d840ab12a08b06304b5e4d26568ba33e98a65ddc`; all four checked-in hashes pass. Generated code remains in obj.
+- The actual read-only backend checkout is `1759f3afef21b9523db918ab7712666709d3453b`, clean throughout this task. Its four protobufs match desktop line content; three raw Windows hashes differ by line endings. Upstream master was verified with ls-remote and was still d840ab12. No backend checkout, schema or source modification was performed.
+- Running image: `sha256:0707d091a756c7c6d5db96677c7fb46fe5a1a4879ac6f8df4658f75a18f85d92`. Running `/opt/tiket/app.jar` SHA-256: `92093fd172b63cbff9f24497a8f5f9ed83518553cd6dc12776cdf7b565a760f4`. OCI revision is unknown and the JAR contains no git/build revision metadata; its exact source commit cannot be independently attested. This provenance limit is not replaced by an invented server SHA.
+- Exact managed profile `disposable-tiket-lab`: backend `http://127.0.0.1:9090`, issuer `https://localhost:8443/realms/tiket-lab`, client `tiket-desktop`, audience `tiket-api`, DevelopmentLoopback=true. ProgramData configuration was read, matched and never rewritten.
+- Existing Compose db/keycloak/tiket containers remained running; PostgreSQL was healthy. No seed rerun, reset, volume deletion, realm import, lifecycle mutation, service restart, physical COM access or other backend deployment occurred. Console printing only.
+
+The owner explicitly authorized controlled lab purchases/reprint and later confirmed that guarded native controls should ship enabled. An initial automatic review rejected generic enabled UI; the owner’s subsequent “ship control enabled” instruction was applied through a newly accepted patch. Actual testing remained on the exact lab, with explicit purchase review and journal gates.
+
+## Deterministic automated tests
+
+**200 passed, zero failures/skips: 133 baseline + 67 new cases.** These tests do not use Docker, Keycloak, local certificates, passwords or the machine's managed profile. They use temporary journals, Windows DPAPI and ephemeral synthetic HTTP/2 Kestrel fixtures. No live suite is discovered by CI; opt-in local tools remain ignored under .awb.
+
+New coverage includes exact encrypted protobuf persistence; no plaintext subject/player/cashier/key/coupon markers; immutable copies; SENDING→UNKNOWN reopen; same-request/key recovery; all seven context bindings; same-process and separate-process writer exclusion; duplicate preparation/confirmation; corruption, missing snapshot, unknown schema, quota, encryption failure, SENDING commit failure and received-ACK persistence failure; cancellation before send/after received ACK; mismatched ACK; review cancellation and quote/profile/sign-out invalidation; removed player/changed cashier rights; and in-flight logout/operator-switch outcome isolation.
+
+Generated PurchaseCoupon, ReprintCoupon and GetPrintStatus fixtures assert actual method/frame bytes, one access-token Bearer, HTTP/2/deadline metadata, distinct gRPC errors, cancellation/deadline behavior, no redirected request/Bearer and no automatic retries. Signed OIDC/access-token fixtures reject wrong issuer/audience/signature/subject/role/POS, including noncanonical POS strings. A failed PAR result is classified before browser activation rather than constructing a null URI.
+
+The synthetic lost-response test is not the live safety proof below. Hardware power-cut/storage-controller certification, full Narrator/high contrast/multi-DPI and shared-workstation key isolation remain outside this acceptance.
+
+## Real disposable backend
+
+| Stage | Outcome | Actual evidence |
+| --- | --- | --- |
+| 1 Transport, claims, browser and quote | PASS | Real packaged browser PKCE for cashier, admin and outsider; randomized loopback callback. Anonymous Ping OK/API v1. Cashier day RUNNING/version 2; race BETTING_OPEN/version 1; authoritative runners 2/3/4. Event …0002 denied. Actual native WIN/Normal one-unit quote 10 PLN; Exacta Box 2/3/4 one-unit quote six combinations/60 PLN; Exacta Wall runner 2/WALL two combinations/20 PLN. No local pricing arithmetic. Admin event read succeeds with its actual EVENT_ADMIN/CASHIER/AUDITOR roles; outsider event read denied. |
+| 2 First reviewed purchase | PASS | Native review displayed actual-lab debit warning, exact connection, player, POS 1, demo-cashier, canonical quote and authorized account read. Confirm produced durable ACK. SQL baseline was zero coupons/debits/jobs. Coupon ed3ce775… then had exactly one 10 PLN debit and one ORIGINAL job. Saved response: account version 1, balance 1090, historical Pending. |
+| 3 Real committed/lost-ACK restart recovery | PASS | A second individually approved 10 PLN purchase committed on the real backend. Test-only wrapper captured success encrypted, suppressed ACK delivery, retained UNKNOWN and exited. A separate process performed fresh browser authentication as the same subject and exact-byte/key replay. Saved replay response was byte-identical to captured success. SQL before and after replay: one coupon, one debit, one ORIGINAL job for that coupon. |
+| 4 Negative/authorization matrix | PASS | Fresh intentional negative requests: stale race version ABORTED; stale confirmation FAILED_PRECONDITION; wrong player/POS/cashier/event PERMISSION_DENIED. Admin and outsider use different validated subjects, have no local cashier-owned rows, and cannot replay the original purchase bytes/key. Outsider account read denied; admin account read correctly allowed by AUDITOR. Native outsider read denied and history count zero. No new financial rows from negative tests. |
+| 5 Outbox and reprint | PASS | Actual authenticated current status read and console DISPATCHED. One explicit native reprint warning/confirmation produced one distinct REPRINT job, no new coupon/debit. Separately journaled exact same-key replay returned the byte-identical reprint acknowledgement and same job; fresh GetPrintStatus returned Reprint/Dispatched. SQL counts unchanged by replay. |
+| 6 Restore, UI and expiry | PASS | Native restart/reauthentication restored exactly two native history rows; outsider/admin showed zero. Natural configured 1800-second expiry was observed at 01:17 on 2026-11-13: Expired state, quote/grants/history cleared, review/read disabled, both encrypted ACK records preserved. Fresh same-subject browser login restored them. Four sizes × Light/Dark quote/history and redacted review captures were checked; separately labeled SYNTHETIC UNKNOWN visuals are display evidence only. Final narrow scroll has a fixed menu band without overlap. Keyboard traversal and original-status-before-reprint guard passed. |
+
+### Financial invariants and identifiers
+
+| Intended operation | Coupon | Jobs | Verified effect |
+| --- | --- | --- | --- |
+| Native purchase | `ed3ce775-dd32-40ab-8ff4-e6be05160f4a` | ORIGINAL `5fb16ef7-de39-4dd5-be6d-3acb8fb4d9c4` | One coupon, one 10 PLN COUPON_STAKE movement, one ORIGINAL |
+| Committed/lost response/recovery | `35d19be9-8de2-4885-b7af-c303e9d9318d` | ORIGINAL `7a2ff035-6b05-4801-beda-594e4ff1742f` | One coupon, one 10 PLN movement, one ORIGINAL before and after replay |
+| Deliberate native reprint + exact replay | Original native coupon above | REPRINT `8ca4c5c7-7830-45a6-b582-63b83c67950d` | One REPRINT, no new debit/coupon, unchanged job on replay |
+
+Final scoped PostgreSQL totals after financial/negative tests: **two coupons, two coupon-stake movements totaling 20 PLN, two ORIGINAL jobs and one REPRINT**. Durable command_actor counts are two PurchaseCoupon and one ReprintCoupon, consistent with no new reservation on replay. All three jobs reached DISPATCHED on the console adapter. These are fictional development funds/output, not proof of physical paper delivery.
+
+There were **13 deliberate real mutation RPC test cases**: eleven PurchaseCoupon transmissions (two intended new sales, one same-key recovery, six negative requests and two different-subject original-key denials) and two ReprintCoupon transmissions (one intended reprint and its exact replay). Read/auth/quote/UI probes are additional evidence and are not counted as financial mutations or deterministic tests.
+
+### Fault-injection boundary and durable evidence
+
+Ignored `.awb/live-recovery` uses the production generated transport, journal and coordinator. It checks the exact approved target/fixture/grants, prepares a new immutable request only in prepare mode, and requires coupon-specific approval for commit-drop/recovery. After real PurchaseCoupon success it DPAPI-encrypts and flushes the captured server ACK to a harness-only file, then throws before delivering that ACK to the coordinator. The coordinator persists UNKNOWN. A new process reopens the journal, freshly authenticates the same subject and retransmits the original bytes/key/coupon. Original request SHA-256: `9c50d9313be377c0d45ac4f9b1543ed8fe76e4a91b25257d612fccf03621c37c`. Captured and recovered response bytes match exactly; IDs, original print job and SQL debit/job counts did not change. This was a real standalone process boundary, not a synthetic server or a claim of packaged-process crash testing.
+
+The native encrypted snapshot was independently audited in memory: schema 1, ACKED purchase and separate ACKED reprint, no plaintext sensitive markers in ciphertext. Native and standalone original subject bindings matched without logging the subject. Its actual packaged location is `%LOCALAPPDATA%/Packages/663d5b9a-e6ff-4a09-9df9-80df8da3b473_0c4xq9r3xq73r/LocalCache/Local/Tiket Desktop/PurchaseJournal/v1`. Read-only ACL audit: owner matches current Windows user, inheritance protected, zero unexpected Allow rules; 3270-byte encrypted snapshot and no pending commit. No plaintext request/response/token export was made.
+
+The negative and cross-subject harness journals conservatively retain their original encrypted requests as UNKNOWN despite expected rejection evidence; they were not erased to make the lab appear clean. All actual successful financial intents are ACKED. Preserve these local journals and this evidence before any future lab reset.
+
+### OIDC correction and browser automation
+
+Initial BrowserError was reproduced as ArgumentNullException, HRESULT 0x80004003. An ignored read-only probe showed PAR HTTP 400 invalid_request, “Invalid scopes: openid profile”, and no start URL. The realm had only dedicated/tiket-claims scopes. The owner created/attached profile; preparation then succeeded and packaged PKCE/read/quote passed. The agent did not modify Keycloak clients/mappers/certificates/credentials. Code now rejects failed preparation before launching, accepts successful shell activation without a process handle, and uses Windows URI activation in the native shell.
+
+Subsequent tests were automated without owner supervision. Fixture passwords were loaded locally in memory and typed only into the trusted system-browser lab form, never printed or committed. Supplemental admin/outsider denial probes used a separate lab-only CLI password grant, never a desktop code path. Test-only explicit issuer browser logout enabled clean identity switches; shipping local sign-out does not globally log out browser SSO.
+
+## Native visual evidence and limitations
+
+Local, ignored evidence: `.awb/phase4-final-main` (four sizes × Light/Dark, wide labeled pane), `.awb/phase4-final-review` (eight native dialogs, player/balance redacted in the live visual tree, all cancelled), `.awb/phase4-final-scroll` (final 584/930 Light/Dark history, fixed menu band, truthful disposable-lab heading annotation), `.awb/phase4-keyboard` and `.awb/phase4-synthetic-unknown` (eight clearly labeled SYNTHETIC display-only states). Earlier `.awb/phase4-real-review` exposed a dialog-theme defect and is superseded by final-review; earlier narrow history is superseded by final-scroll. DevTools edits were visual redaction/annotation/fixture display only: no request/journal mutation or shipping test bypass. Normal restart removes them. Screens were actually viewed; review defaults to Cancel, canonical selection is cashier-readable, and current versus historical print wording is distinct. DPI was 96/100%. Keyboard focus traversed Get quote → player → verified POS → Review purchase. The reprint button was disabled before original status inspection and enabled after its authorized current read; no extra reprint was sent.
+
+## Build and delivery checks
+
+Local restore, full Debug/Release x64 solution builds, 200-test run, contract hashes and whitespace checks pass. Unsigned Release MSIX packaging passes; missing mspdbcmf.exe remains the historical symbols-only warning. Rider diagnostics on journal/coordinator/identity/session/transport/native UI files report no errors. No dependency pins, manifest identity/capabilities, contracts, solution projects or CI permissions changed. Exact implementation/delivery heads and final hosted Windows CI are recorded in the delivery handoff/PR metadata; no merge or release is performed.
+
+Remaining operational limits: DPAPI is per Windows account, not per OIDC cashier; separate Windows accounts/approved isolation are required for a real shared-workstation pilot. Whole-snapshot quotas fail closed; no automatic UNKNOWN retention deletion or schema migration/backup restore utility exists. Ambiguous post-send errors remain UNKNOWN conservatively, including conflicts; no automatic replacement sale or reprint. Database incarnation continuity is operationally governed: never reset/reuse the same lab namespace with unresolved originals. Exact running-server source SHA remains unverified as described above. No signing, installer distribution, production-money readiness, paper-delivery guarantee or broad accessibility certification is claimed.

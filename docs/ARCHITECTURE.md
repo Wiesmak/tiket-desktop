@@ -1,4 +1,16 @@
-﻿# Architecture — Phase 1
+﻿# Architecture
+
+## Current Phase 4
+
+The four-project native WinUI solution and package identity are preserved. ConnectionSession owns memory-only credentials, generation/cancellation scopes, the composer and purchase workflow. OperatingGrants independently validates access-token RS256 signature, API audience, issuer, lifetime and equality with the signed ID-token subject; financial metadata comes from exact trusted event/player/POS/cashier claims. Backend authorization remains final.
+
+MutationJournal stores a DPAPI CurrentUser encrypted whole snapshot with an exclusive process writer handle and flush-confirmed Windows replacement. PREPARED and SENDING must commit before generated gRPC mutation dispatch. JournaledMutation validates acknowledgements, preserves exact response bytes, and conservatively retains UNKNOWN after any post-send ambiguity. The same channel handles PurchaseCoupon, GetAccount, GetPrintStatus and ReprintCoupon, with one Bearer, deadlines, cancellation, no redirects or middleware retries. Reprints have distinct request/key identity and link an ACKED original. See SAFE_PURCHASE_JOURNAL.md for storage, limits, migrations and recovery.
+
+Native review binds the immutable server quote to player/POS/cashier and current session. Local history requires exact profile/backend/issuer/client/subject/event/POS binding plus current player/cashier grants. Sign-out clears UI and credentials, not encrypted records; original outcome recording survives UI generation changes. Current print status is separate from historical ACK state, with at most three bounded checks for the latest known job and manual refresh. No direct database or printer code ships; SQL and acknowledgement-suppression evidence lives only in ignored opt-in .awb lab tools.
+
+## Historical foundation and Phases 1–3
+
+The sections below describe earlier deliveries; statements that mutations/journaling are absent apply to those phases only.
 
 Adapted from the owner's 2026-11-12 architecture starter ZIP after reading all six design documents and both conceptual wireframes. Those are design references, not evidence of a working product. Historical .NET 10, Visual Studio template creation, absent repository and empty main-branch assumptions are superseded by this existing .NET 11 / Rider / master checkout.
 

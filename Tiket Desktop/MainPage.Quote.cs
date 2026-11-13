@@ -151,7 +151,8 @@ public sealed partial class MainPage
         if (QuoteFeedback is null) return;
         var editor = connection.Composer;
         bool available = composerOverview is not null;
-        CashierQuotationHeading.Text = available ? "LIVE / SERVER · cashier quotation" : "Cashier quotation · disconnected";
+        CashierQuotationHeading.Text = available ?
+            (connection.Profile?.DevelopmentLoopback == true ? "DISPOSABLE LAB — ACTUAL TEST DEBIT · cashier" : "LIVE / SERVER · cashier quotation") : "Cashier quotation · disconnected";
         QuoteRace.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
         foreach (var field in new FrameworkElement[] { QuotePool, QuoteMode, QuoteUnits, OrderGuidance })
             field.Visibility = selectedQuoteRace is not null ? Visibility.Visible : Visibility.Collapsed;
@@ -172,5 +173,6 @@ public sealed partial class MainPage
                 $"Unit stake: {p.UnitStake} {p.Currency}\nTotal stake: {p.TotalStake} {p.Currency}\n" +
                 $"Day version: {response.RaceDayVersion} · race version: {response.RaceVersion}\nQuoted: {editor.QuotedAt:g}";
         }
+        RenderPurchases();
     }
 }

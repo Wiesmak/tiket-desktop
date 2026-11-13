@@ -118,10 +118,106 @@ public class GrpcTransportTests
         Assert.Equal(cancel ? StatusCode.Cancelled : StatusCode.DeadlineExceeded,error.StatusCode);
     }
 
-    private sealed class GrpcFixture(WebApplication app) : IAsyncDisposable
+    private static MutationRecord WireIntent(ConnectionProfile profile, bool reprint = false)
+    {
+        var coupon = Guid.NewGuid().ToString();
+        var key = Guid.NewGuid().ToString();
+        var player = Guid.NewGuid().ToString();
+        var binding = new MutationBinding(profile.Id, profile.Backend.OriginalString, profile.Issuer.OriginalString,
+            profile.ClientId, "synthetic-subject", ConnectionTests.Day.ToString(), 1);
+        var request = new PurchaseCouponRequest { RaceDayId = binding.Event, RaceId = Guid.NewGuid().ToString(),
+            PlayerId = player, CouponId = coupon, IdempotencyKey = key, PointOfSaleNumber = 1,
+            CashierIdentifier = "fixture-cashier", QuoteConfirmation = "opaque" };
+        return new MutationRecord(1, Guid.NewGuid(), binding,
+            reprint ? "pl.umamusume.tiket.api.v1.PrintingService/ReprintCoupon" : "pl.umamusume.tiket.api.v1.BettingService/PurchaseCoupon",
+            reprint ? new ReprintCouponRequest { RaceDayId = binding.Event, CouponId = coupon, IdempotencyKey = key }.ToByteArray() : request.ToByteArray(),
+            coupon, key, player, request.CashierIdentifier, new QuoteCouponResponse { Pricing = QuoteTests.Reply().Pricing }.ToByteArray(),
+            DateTimeOffset.UtcNow, MutationState.Sending, null, reprint ? Guid.NewGuid() : null);
+    }
+
+    [Theory] [InlineData(false)] [InlineData(true)]
+    public async Task MutationUsesGeneratedClientExactPayloadAndOneBearer(bool reprint)
+    {
+        await using var fixture = await GrpcFixture.Start();
+        var profile = ConnectionTests.Profile(fixture.Address, development: true);
+        using var backend = new ReadOnlyBackend(profile);
+        var intent = WireIntent(profile, reprint);
+        var bytes = await backend.TransmitJournaledAsync(intent, "access-only", CancellationToken.None);
+        Assert.Equal("/" + intent.Method, fixture.MutationPath);
+        Assert.Equal(intent.Request, fixture.MutationRequest);
+        Assert.Equal(new[] { "Bearer access-only" }, fixture.Calls.Single().Auth);
+        Assert.Equal("HTTP/2", fixture.Calls.Single().Protocol);
+        Assert.NotEmpty(fixture.Calls.Single().Timeout);
+        if (reprint) Assert.Equal(PrintJobType.Reprint, PrintStatus.Parser.ParseFrom(bytes).Type);
+        else Assert.Equal(intent.Coupon, PurchaseCouponResponse.Parser.ParseFrom(bytes).CouponId);
+        var status = await backend.ReadPrintStatusAsync("fixture-job", "access-only", CancellationToken.None);
+        Assert.Equal(DispatchStatus.Dispatched, status.Status);
+    }
+
+    [Theory]
+    [InlineData(StatusCode.Unauthenticated)] [InlineData(StatusCode.PermissionDenied)]
+    [InlineData(StatusCode.InvalidArgument)] [InlineData(StatusCode.NotFound)]
+    [InlineData(StatusCode.AlreadyExists)] [InlineData(StatusCode.Aborted)]
+    [InlineData(StatusCode.FailedPrecondition)] [InlineData(StatusCode.ResourceExhausted)]
+    [InlineData(StatusCode.Unavailable)] [InlineData(StatusCode.DeadlineExceeded)] [InlineData(StatusCode.Cancelled)]
+    public async Task MutationErrorsPreserveStatusAndNeverAutomaticallyRetry(StatusCode code)
+    {
+        await using var fixture = await GrpcFixture.Start(code);
+        var profile = ConnectionTests.Profile(fixture.Address, development: true);
+        using var backend = new ReadOnlyBackend(profile);
+        var error = await Assert.ThrowsAsync<RpcException>(() => backend.TransmitJournaledAsync(
+            WireIntent(profile), "access-only", CancellationToken.None));
+        Assert.Equal(code, error.StatusCode);
+        Assert.Single(fixture.Calls);
+        Assert.DoesNotContain("access-only", MutationMessages.For(code));
+    }
+
+    [Fact]
+    public async Task MutationRejectsPreparedAndRepointedContextBeforeNetwork()
+    {
+        await using var fixture = await GrpcFixture.Start();
+        var profile = ConnectionTests.Profile(fixture.Address, development: true);
+        using var backend = new ReadOnlyBackend(profile);
+        var intent = WireIntent(profile);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => backend.TransmitJournaledAsync(
+            intent with { State = MutationState.Prepared }, "access-only", CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => backend.TransmitJournaledAsync(
+            intent with { Binding = intent.Binding with { Backend = "https://other.invalid" } }, "access-only", CancellationToken.None));
+        Assert.Empty(fixture.Calls);
+    }
+
+    [Theory] [InlineData(false, false)] [InlineData(false, true)] [InlineData(true, false)] [InlineData(true, true)]
+    public async Task MutationCancellationAndDeadlineDoNotRetry(bool reprint, bool cancel)
+    {
+        await using var fixture = await GrpcFixture.Start(delay: true);
+        var profile = ConnectionTests.Profile(fixture.Address, development: true);
+        using var backend = new ReadOnlyBackend(profile, cancel ? TimeSpan.FromSeconds(5) : TimeSpan.FromMilliseconds(150));
+        using var token = new CancellationTokenSource(); if (cancel) token.CancelAfter(150);
+        var error = await Assert.ThrowsAsync<RpcException>(() => backend.TransmitJournaledAsync(WireIntent(profile, reprint), "access-only", token.Token));
+        Assert.Equal(cancel ? StatusCode.Cancelled : StatusCode.DeadlineExceeded, error.StatusCode);
+        // On a loaded runner the budget can expire before HTTP/2 setup completes; neither path may retry.
+        Assert.InRange(fixture.Calls.Count, 0, 1);
+    }
+
+    [Theory] [InlineData(false)] [InlineData(true)]
+    public async Task MutationRedirectCannotForwardBearerOrRequest(bool reprint)
+    {
+        await using var other = await GrpcFixture.Start();
+        await using var origin = await GrpcFixture.Start(redirect: other.Address);
+        var profile = ConnectionTests.Profile(origin.Address, development: true);
+        using var backend = new ReadOnlyBackend(profile);
+        await Assert.ThrowsAsync<RpcException>(() => backend.TransmitJournaledAsync(WireIntent(profile, reprint), "access-only", CancellationToken.None));
+        Assert.Single(origin.Calls); Assert.Empty(other.Calls);
+    }
+
+    internal sealed class GrpcFixture(WebApplication app) : IAsyncDisposable
     {
         public string? QuotePath;
         public QuoteCouponRequest? QuoteRequest;
+        public string? MutationPath;
+        public byte[]? MutationRequest;
+        public TaskCompletionSource<bool>? PurchaseGate;
+        public TaskCompletionSource<bool> PurchaseReceived = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public string Address => app.Urls.Single();
         public List<(string[] Auth, string Timeout, string Protocol)> Calls = [];
         public static async Task<GrpcFixture> Start(StatusCode? error = null, bool delay = false, string? redirect = null)
@@ -155,6 +251,28 @@ public class GrpcTransportTests
                     fixture.QuoteRequest = QuoteCouponRequest.Parser.ParseFrom(wire.AsSpan(5));
                     result = QuoteTests.Reply();
                 }
+                else if (method == "PurchaseCoupon")
+                {
+                    fixture.MutationPath = context.Request.Path;
+                    fixture.MutationRequest = wire.AsSpan(5).ToArray();
+                    var purchase = PurchaseCouponRequest.Parser.ParseFrom(fixture.MutationRequest);
+                    fixture.PurchaseReceived.TrySetResult(true);
+                    if (fixture.PurchaseGate is not null) await fixture.PurchaseGate.Task;
+                    var purchasedPricing = QuoteTests.Reply().Pricing;
+                    purchasedPricing.RaceDayId = purchase.RaceDayId; purchasedPricing.RaceId = purchase.RaceId;
+                    result = new PurchaseCouponResponse { CouponId = purchase.CouponId, PlayerId = purchase.PlayerId,
+                        Pricing = purchasedPricing, PrintJobId = Guid.NewGuid().ToString(), PrintingStatus = DispatchStatus.Pending };
+                }
+                else if (method == "ReprintCoupon")
+                {
+                    fixture.MutationPath = context.Request.Path;
+                    fixture.MutationRequest = wire.AsSpan(5).ToArray();
+                    var reprint = ReprintCouponRequest.Parser.ParseFrom(fixture.MutationRequest);
+                    result = new PrintStatus { CouponId = reprint.CouponId, PrintJobId = "fixture-reprint",
+                        Type = PrintJobType.Reprint, Status = DispatchStatus.Pending };
+                }
+                else if (method == "GetPrintStatus") result = new PrintStatus { PrintJobId = "fixture-job",
+                    Type = PrintJobType.Original, Status = DispatchStatus.Dispatched };
                 else
                 {
                     var query = method == "GetRace" ? RaceQuery.Parser.ParseFrom(wire.AsSpan(5)).RaceDayId : DayQuery.Parser.ParseFrom(wire.AsSpan(5)).RaceDayId;
