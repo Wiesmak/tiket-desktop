@@ -42,14 +42,18 @@ internal static class AdministrationWire
         if (record.Method is Prefix + "RaceDayService/CreateRaceDay" or Prefix + "RaceDayService/PublishRaceDay" or Prefix + "RaceDayService/StartRaceDay")
         {
             var ack = DayAcknowledgement.Parser.ParseFrom(bytes);
-            if (ack.RaceDayId != record.Binding.Event || ack.Version < 0 || ack.Phase == DayPhase.Unspecified)
+            var create = record.Method.EndsWith("/CreateRaceDay", StringComparison.Ordinal);
+            var expectedPhase = create ? DayPhase.Draft : record.Method.EndsWith("/PublishRaceDay", StringComparison.Ordinal) ? DayPhase.Ready : DayPhase.Running;
+            var expectedVersion = create ? 0 : checked(DayCommand.Parser.ParseFrom(record.Request).ExpectedVersion + 1);
+            if (ack.RaceDayId != record.Binding.Event || ack.Version != expectedVersion || ack.Phase != expectedPhase)
                 throw new IOException("Day acknowledgement mismatch.");
         }
         else if (record.Method is Prefix + "RaceService/OpenBetting" or Prefix + "RaceService/CloseBetting")
         {
             var request = RaceCommand.Parser.ParseFrom(record.Request);
             var ack = RaceAcknowledgement.Parser.ParseFrom(bytes);
-            if (ack.RaceDayId != record.Binding.Event || ack.RaceId != request.RaceId || ack.Version < 0 || ack.Phase == RacePhase.Unspecified)
+            if (ack.RaceDayId != record.Binding.Event || ack.RaceId != request.RaceId || ack.Version != checked(request.ExpectedRaceVersion + 1) ||
+                ack.Phase != (record.Method.EndsWith("/OpenBetting", StringComparison.Ordinal) ? RacePhase.BettingOpen : RacePhase.BettingClosed))
                 throw new IOException("Race acknowledgement mismatch.");
         }
         else
@@ -57,7 +61,20 @@ internal static class AdministrationWire
             var player = record.Method == Prefix + "EnrollmentService/EnrollPlayer" ?
                 EnrollPlayerRequest.Parser.ParseFrom(record.Request).PlayerId : AddOpeningFundingRequest.Parser.ParseFrom(record.Request).PlayerId;
             var ack = EnrollmentInformation.Parser.ParseFrom(bytes);
-            if (ack.RaceDayId != record.Binding.Event || ack.PlayerId != player || ack.AccountVersion < 0)
+            var enrollment = record.Method.EndsWith("/EnrollPlayer", StringComparison.Ordinal);
+            var invalidAmounts = ack.OpeningPaid < 0 || ack.OpeningPromotional < 0 || ack.Balance < 0 || ack.OpeningVersion < 0;
+            if (enrollment)
+            {
+                var request = EnrollPlayerRequest.Parser.ParseFrom(record.Request);
+                invalidAmounts |= ack.OpeningPaid != request.OpeningPaid || ack.OpeningPromotional != request.OpeningPromotional;
+            }
+            else
+            {
+                var request = AddOpeningFundingRequest.Parser.ParseFrom(record.Request);
+                invalidAmounts |= ack.OpeningPaid < request.AdditionalPaid || ack.OpeningPromotional < request.AdditionalPromotional ||
+                    ack.AccountVersion != checked(request.ExpectedAccountVersion + 1);
+            }
+            if (ack.RaceDayId != record.Binding.Event || ack.PlayerId != player || ack.AccountVersion < 0 || invalidAmounts)
                 throw new IOException("Enrollment acknowledgement mismatch.");
         }
     }

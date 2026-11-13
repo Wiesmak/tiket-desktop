@@ -4,9 +4,20 @@ using Pl.Umamusume.Tiket.Api.V1;
 
 namespace Tiket.Desktop.Application;
 
-public sealed partial class ReadOnlyBackend
+internal interface IAccountBackend
 {
-    internal async Task<byte[]> TransmitAdministrationAsync(AdministrationRecord saved, string accessToken, CancellationToken cancellation)
+    Task<AccountInformation> GetAccountAsync(AccountQuery query, string token, CancellationToken cancellation);
+}
+internal interface IAdministrationBackend
+{
+    Task<byte[]> TransmitAdministrationAsync(AdministrationRecord saved, string token, CancellationToken cancellation);
+    Task<EnrollmentInformation> GetEnrollmentAsync(EnrollmentQuery query, string token, CancellationToken cancellation);
+    Task<PlayerList> ListPlayersAsync(DayQuery query, string token, CancellationToken cancellation);
+}
+
+public sealed partial class ReadOnlyBackend : IAdministrationBackend, IAccountBackend
+{
+    async Task<byte[]> IAdministrationBackend.TransmitAdministrationAsync(AdministrationRecord saved, string accessToken, CancellationToken cancellation)
     {
         if (saved.State != MutationState.Sending || saved.Binding.Profile != profile.Id ||
             saved.Binding.Backend != profile.Backend.OriginalString || saved.Binding.Issuer != profile.Issuer.OriginalString ||
@@ -35,10 +46,13 @@ public sealed partial class ReadOnlyBackend
         };
         return response.ToByteArray();
     }
-    internal async Task<EnrollmentInformation> GetEnrollmentAsync(EnrollmentQuery query, string accessToken, CancellationToken cancellation) =>
+    Task<AccountInformation> IAccountBackend.GetAccountAsync(AccountQuery query, string token, CancellationToken cancellation) =>
+        ReadAccountAsync(query, token, cancellation);
+
+    async Task<EnrollmentInformation> IAdministrationBackend.GetEnrollmentAsync(EnrollmentQuery query, string accessToken, CancellationToken cancellation) =>
         await new EnrollmentService.EnrollmentServiceClient(channel).GetEnrollmentAsync(query,
             new Metadata { { "authorization", "Bearer " + accessToken } }, DateTime.UtcNow.Add(deadline), cancellation);
-    internal async Task<PlayerList> ListPlayersAsync(DayQuery query, string accessToken, CancellationToken cancellation) =>
+    async Task<PlayerList> IAdministrationBackend.ListPlayersAsync(DayQuery query, string accessToken, CancellationToken cancellation) =>
         await new EnrollmentService.EnrollmentServiceClient(channel).ListPlayersAsync(query,
             new Metadata { { "authorization", "Bearer " + accessToken } }, DateTime.UtcNow.Add(deadline), cancellation);
 }

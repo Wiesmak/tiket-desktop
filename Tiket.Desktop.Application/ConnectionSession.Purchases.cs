@@ -6,7 +6,10 @@ using Pl.Umamusume.Tiket.Api.V1;
 namespace Tiket.Desktop.Application;
 
 public sealed record PurchaseReview(Guid ReviewId, string Summary);
-public sealed record LocalPurchase(Guid Id, string Coupon, string State, string Summary, bool CanRecover, bool CanReprint);
+public sealed record LocalPurchase(Guid Id, string Coupon, string State, string Summary, bool CanRecover, bool CanReprint)
+{
+    public string DisplaySummary { get; init; } = "";
+}
 
 public sealed partial class ConnectionSession
 {
@@ -27,11 +30,13 @@ public sealed partial class ConnectionSession
         Binding(quote.Pricing.RaceDayId, pos);
         if (material?.OperatingGrants?.Players.Contains(player) != true) throw new InvalidOperationException("Player unavailable.");
         var current = generation;
+        var context = eventRevision;
+        using var accountCancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, eventLifetime.Token);
         backend ??= backendFactory(Profile!);
         if (backend is not ReadOnlyBackend transport) throw new InvalidOperationException();
         var account = await transport.ReadAccountAsync(new AccountQuery { RaceDayId = quote.Pricing.RaceDayId, PlayerId = player },
-            material.AccessToken, lifetime.Token);
-        if (current != generation) throw new OperationCanceledException();
+            material.AccessToken, accountCancellation.Token);
+        if (current != generation || context != eventRevision) throw new OperationCanceledException();
         return $"Authorized balance before purchase: {account.Balance} {account.Currency} · account version {account.AccountVersion}";
     }
 
@@ -40,7 +45,8 @@ public sealed partial class ConnectionSession
         CheckExpiry();
         var grants = material?.OperatingGrants;
         if (disposed || Profile is null || grants is null || grants.Subject != Subject ||
-            !grants.Events.Contains(day) || !grants.Poses.Contains(pos))
+            !grants.Events.Contains(day) || !grants.Poses.Contains(pos) ||
+            (selectedEvent is not null && selectedEvent.Value.ToString() != day))
             throw new InvalidOperationException("Verified subject/event/POS operating context unavailable.");
         return new(Profile.Id, Profile.Backend.OriginalString, Profile.Issuer.OriginalString, Profile.ClientId,
             grants.Subject, day, pos);
@@ -104,6 +110,8 @@ public sealed partial class ConnectionSession
             $"Selection: {CashierComposer.Canonical(p.Selection, Overview?.Races.Races.FirstOrDefault(x => x.Definition.RaceId == p.RaceId)?.Definition.Runners ?? new Google.Protobuf.Collections.RepeatedField<Runner>())}\nTotal: {p.TotalStake} {p.Currency}");
     }
 
+    public bool IsPurchaseReviewCurrent => review is { } value && value.Generation == generation && Composer.Response is { } current &&
+        current.ToByteArray().AsSpan().SequenceEqual(value.Record.ReviewedQuote);
     public void CancelPurchaseReview() => review = null;
 
     public async Task ConfirmPurchaseAsync(Guid reviewId)
@@ -115,7 +123,7 @@ public sealed partial class ConnectionSession
             !quote.ToByteArray().AsSpan().SequenceEqual(r.ReviewedQuote))
             throw new InvalidOperationException("Quote or identity changed. Review again.");
         review = null;
-        PurchaseStatus = "PREPARING · encrypting and committing the reviewed original intent before dispatch.";
+        PurchaseStatus = "Preparing…";
         Changed?.Invoke();
         try { journal!.Prepare(r); }
         catch
@@ -130,39 +138,44 @@ public sealed partial class ConnectionSession
     private async Task SubmitAsync(MutationRecord r)
     {
         var current = generation;
+        var context = eventRevision;
+        using var commandCancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, eventLifetime.Token);
         var token = material?.AccessToken ?? throw new InvalidOperationException("Sign in as the original operator.");
         if (Binding(r.Binding.Event, r.Binding.Pos) != r.Binding || mutationBusy) throw new InvalidOperationException("Context unavailable.");
         RequireRecordRights(r);
         backend ??= backendFactory(Profile!);
         if (backend is not ReadOnlyBackend transport) throw new InvalidOperationException("Mutation transport unavailable.");
         mutationBusy = true;
-        PurchaseStatus = "SENDING · exact intent saved. Do not start a replacement sale.";
+        PurchaseStatus = "Sending…";
         Changed?.Invoke();
         try
         {
             await new JournaledMutation(journal!).SendAsync(r.Id, r.Binding,
-                (saved, ct) => transport.TransmitJournaledAsync(saved, token, ct), lifetime.Token);
-            if (current == generation) PurchaseStatus = "ACKED · original server response durably saved. Inspect current print status separately.";
+                (saved, ct) => transport.TransmitJournaledAsync(saved, token, ct), commandCancellation.Token);
+            if (current == generation && context == eventRevision) PurchaseStatus = r.OriginalPurchase is null ? "Purchased" : "Reprint requested";
         }
         catch (MutationUncertainException error)
         {
-            if (current == generation)
+            if (current == generation && context == eventRevision)
             {
                 if (error.Code == Grpc.Core.StatusCode.Unauthenticated)
                 {
                     Clear(); State = ConnectionState.Expired;
-                    PurchaseStatus = "UNKNOWN · possible debit. Reauthenticate the original identity for exact-intent recovery.";
+                    PurchaseStatus = "Uncertain — sign in to recover";
                     Changed?.Invoke();
                 }
-                else PurchaseStatus = "UNKNOWN · possible debit. Recover the original intent; never replace its key. " +
-                    (error.Code is { } code ? MutationMessages.For(code) : "Transport or durable acknowledgement failed; investigate the retained journal.");
+                else
+                {
+                    PurchaseStatus = "Uncertain — recover";
+                    SafeDiagnostic = error.Code is { } code ? MutationMessages.For(code) : "Transport or durable acknowledgement failed.";
+                }
             }
         }
         finally
         {
             mutationBusy = false;
             if (disposed) { journal?.Dispose(); journal = null; }
-            if (current == generation) Changed?.Invoke();
+            if (current == generation && context == eventRevision) Changed?.Invoke();
         }
     }
 
@@ -175,14 +188,21 @@ public sealed partial class ConnectionSession
             .OrderBy(r => r.State == MutationState.Unknown ? 0 : r.State == MutationState.Sending ? 1 : 2).FirstOrDefault();
         if (unresolved is not null)
             PurchaseStatus = !HasRecordRights(unresolved)
-                ? "Stored unresolved intent requires restored original grants. Details are hidden; preserve the journal and escalate."
-                : $"{unresolved.State.ToString().ToUpperInvariant()} · original saved intent needs attention. Recovery may complete the original debit; never replace its key.";
+                ? "Access denied — restore original grants."
+                : unresolved.State == MutationState.Prepared ? "Prepared — recover" : "Uncertain — recover";
         return records.Where(HasRecordRights).OrderBy(r => r.State is MutationState.Unknown or MutationState.Sending or MutationState.Prepared ? 0 : 1)
             .ThenByDescending(r => r.CreatedAt).Select(r => new LocalPurchase(r.Id, r.Coupon,
             r.State.ToString().ToUpperInvariant(), SavedSummary(r), r.State is MutationState.Unknown or MutationState.Prepared,
-            r.State == MutationState.Acked && r.OriginalPurchase is null)).ToArray();
+            r.State == MutationState.Acked && r.OriginalPurchase is null) { DisplaySummary = CompactPurchase(r) }).ToArray();
     }
 
+    private static string CompactPurchase(MutationRecord r)
+    {
+        if (r.State != MutationState.Acked) return r.State == MutationState.Prepared ? "Prepared — confirm recovery" : "Uncertain — recover";
+        if (r.OriginalPurchase is not null) return "Reprint · " + r.CreatedAt.ToLocalTime().ToString("t");
+        var ack = PurchaseCouponResponse.Parser.ParseFrom(r.Response!);
+        return $"Purchased · {ack.Pricing.TotalStake} {ack.Pricing.Currency} · {r.CreatedAt.ToLocalTime():t}";
+    }
     private static string SavedSummary(MutationRecord r)
     {
         var summary = $"{(r.OriginalPurchase is null ? "PURCHASE / ORIGINAL" : "REPRINT")} · {r.State}\nCoupon: {r.Coupon}\nCreated: {r.CreatedAt:g}";
@@ -219,7 +239,7 @@ public sealed partial class ConnectionSession
         var current = generation;
         backend ??= backendFactory(Profile!);
         if (backend is not ReadOnlyBackend transport) throw new InvalidOperationException();
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, cancellation);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, eventLifetime.Token, cancellation);
         var status = await transport.ReadPrintStatusAsync(job, material!.AccessToken, linked.Token);
         linked.Token.ThrowIfCancellationRequested();
         if (current != generation || status.CouponId != r.Coupon || status.PrintJobId != job ||

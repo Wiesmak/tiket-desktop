@@ -26,7 +26,7 @@ public sealed class LocalRaceDayPlan
             errors.Add("Select an unused event slot provisioned in your identity and managed profile.");
         if (!DateOnly.TryParseExact(definition.EventDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
             errors.Add("Enter a date as yyyy-MM-dd.");
-        if (definition.DisplayNumber <= 0) errors.Add("Display number must be positive.");
+        if (definition.DisplayNumber is < 1 or > 999) errors.Add("Display number must be 1–999.");
         if (definition.Currency.Length != 3 || definition.Currency.Any(c => c is < 'A' or > 'Z'))
             errors.Add("Enter a three-letter uppercase ISO currency.");
         try
@@ -64,8 +64,8 @@ public sealed class LocalRaceDayPlan
             if (race.Pools.Count != 4 || !race.Pools.Select(p => p.Type).Order().SequenceEqual(
                     new[] { PoolType.Win, PoolType.Quinella, PoolType.Exacta, PoolType.Trifecta }))
                 errors.Add(prefix + "configure WIN, QUINELLA, EXACTA and TRIFECTA exactly once.");
-            if (race.Pools.Any(p => p.UnitStake <= 0 || p.TakeBasisPoints is < 0 or >= 10000))
-                errors.Add(prefix + "stakes must be positive int64 units; take must be 0–9999 basis points.");
+            if (race.Pools.Any(p => p.UnitStake <= 0 || p.TakeBasisPoints is < 0 or > 10000))
+                errors.Add(prefix + "stakes must be positive int64 units; take must be 0–10000 basis points.");
         }
         return errors;
     }

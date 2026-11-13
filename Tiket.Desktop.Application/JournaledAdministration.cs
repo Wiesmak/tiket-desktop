@@ -12,6 +12,7 @@ internal sealed class JournaledAdministration(AdministrationJournal journal)
         Func<AdministrationRecord, CancellationToken, Task<byte[]>> transmit, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var firstTransmission = journal.Read(authenticatedBinding).Single(r => r.Id == intentId).State == MutationState.Prepared;
         var sending = journal.MarkSending(intentId, authenticatedBinding);
         try
         {
@@ -25,7 +26,18 @@ internal sealed class JournaledAdministration(AdministrationJournal journal)
         {
             // Even denial/precondition is conservatively uncertain: an earlier transmission may have committed.
             // If this write also fails, the durable SENDING marker recovers to UNKNOWN; journal stays quarantined.
-            try { journal.MarkUnknown(intentId, authenticatedBinding); } catch { }
+            try
+            {
+                // An explicit server rejection of the first transmission is terminal. A replay rejection
+                // cannot disprove a previous commit, so UNKNOWN recovery stays conservative.
+                if (sending.State == MutationState.Sending && error is RpcException rejected &&
+                    journal.Read(authenticatedBinding).Single(r => r.Id == intentId).Response is null &&
+                    firstTransmission && rejected.StatusCode is StatusCode.Aborted or StatusCode.InvalidArgument or
+                        StatusCode.FailedPrecondition or StatusCode.PermissionDenied or StatusCode.Unauthenticated or StatusCode.NotFound or StatusCode.AlreadyExists)
+                    journal.MarkRejected(intentId, authenticatedBinding);
+                else journal.MarkUnknown(intentId, authenticatedBinding);
+            }
+            catch { }
             throw new MutationUncertainException(error is RpcException rpc ? rpc.StatusCode : null);
         }
     }

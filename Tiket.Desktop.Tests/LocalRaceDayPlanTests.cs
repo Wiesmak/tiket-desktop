@@ -54,7 +54,7 @@ public class LocalRaceDayPlanTests
             case "program": race.Runners[1].ProgramNumber = race.Runners[0].ProgramNumber; break;
             case "pool": race.Pools[1].Type = PoolType.Win; break;
             case "stake": race.Pools[0].UnitStake = 0; break;
-            case "take": race.Pools[0].TakeBasisPoints = 10000; break;
+            case "take": race.Pools[0].TakeBasisPoints = 10001; break;
             case "limit": d.MaximumOpenRaces = 0; break;
         }
         var plan = new LocalRaceDayPlan(d);

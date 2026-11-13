@@ -127,6 +127,31 @@ public sealed class PurchaseSessionTests : IDisposable
         Assert.Equal(MutationState.Prepared, Assert.Single(journal.Read(Binding)).State);
     }
 
+    [Fact]
+    public async Task EventSwitchCancelsPurchaseAndCannotDisplayOldOutcomeInNewContext()
+    {
+        await using var fixture = await GrpcTransportTests.GrpcFixture.Start();
+        fixture.PurchaseGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var profile = ConnectionTests.Profile(fixture.Address, development: true);
+        using var journal = new MutationJournal(directory);
+        using var session = new ConnectionSession(new SwitchingLogin(), p => new ReadOnlyBackend(p), journal);
+        session.Select(profile); await session.SignInAsync(); session.SelectEvent(ConnectionTests.Day);
+        session.Composer.SetContext(QuoteTests.Day(), QuoteTests.Race());
+        session.Composer.Edit(QuoteDraft.Empty with { Slots = [new(QuoteTests.Horses[0])] });
+        var quote = QuoteTests.Reply(); quote.Pricing.RaceDayId = ConnectionTests.Day.ToString(); quote.Pricing.RaceId = QuoteTests.RaceId;
+        await session.Composer.QuoteAsync((_, _) => Task.FromResult(quote));
+        var review = session.ReviewPurchase(Player, 7);
+        var sending = session.ConfirmPurchaseAsync(review.ReviewId);
+        await fixture.PurchaseReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        session.SelectEvent(Guid.NewGuid()); fixture.PurchaseGate.TrySetResult(true);
+        await sending;
+        var retained = Assert.Single(journal.Read(Binding with { Backend = profile.Backend.OriginalString }));
+        Assert.Equal(MutationState.Unknown, retained.State);
+        Assert.Equal("Ready", session.PurchaseStatus);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.RecoverPurchaseAsync(retained.Id, ConnectionTests.Day.ToString(), 7));
+        Assert.Single(fixture.Calls);
+    }
+
     private sealed class SwitchingLogin : INativeLogin
     {
         internal string Subject = "fixture-subject";

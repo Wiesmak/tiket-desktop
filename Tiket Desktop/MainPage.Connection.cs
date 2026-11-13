@@ -29,7 +29,12 @@ public sealed partial class MainPage
         refresh.Select(key, refreshClock.Elapsed);
         if (KnownEvents.SelectedItem is Guid day)
             await refresh.TickAsync(refreshClock.Elapsed, foreground && IsLoaded,
-                State.Destination == Destination.Cashier, async ct => { retryRequested = false; var success = await connection.SynchronizeAsync(day, ct); if (success) await RefreshVisiblePrintsAsync(ct); return success; });
+                State.Destination == Destination.Cashier, async ct => { retryRequested = false; var success = await connection.SynchronizeAsync(day, ct); if (success) {
+                    connection.SelectPlayer(State.Destination == Destination.Cashier ? PurchasePlayer.Text : AdminPlayer.Text);
+                    success &= await connection.ReadSelectedPlayerAsync(ct);
+                    if (showPlayers && connection.IsAuditor) await connection.ReadPlayersAsync();
+                    await RefreshVisiblePrintsAsync(ct);
+                } return success; });
     }
     private readonly DispatcherTimer expiryTimer = new() { Interval = TimeSpan.FromSeconds(1) };
 
@@ -37,6 +42,7 @@ public sealed partial class MainPage
     {
         InitializeComposer();
         connection.Changed += RenderConnection;
+        connection.RefreshRequested += () => { retryRequested = true; refresh.Request(); };
         try
         {
             Profiles.ItemsSource = ManagedProfiles.Load(ManagedProfiles.PathOnMachine);
@@ -52,7 +58,7 @@ public sealed partial class MainPage
         expiryTimer.Start();
         Unloaded += (_, _) => { expiryTimer.Stop(); refresh.Dispose(); connection.Dispose(); };
     }
-    public void CloseConnection() { expiryTimer.Stop(); connection.Dispose(); }
+    public void CloseConnection() { expiryTimer.Stop(); refresh.Dispose(); connection.Dispose(); }
 
     private void OnProfileChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -97,15 +103,24 @@ public sealed partial class MainPage
         if (live is not null)
         {
             var day = live.Day;
-            var context = $"Day {day.Definition.DisplayNumber} · {day.Status.Phase} · updated {connection.LastSynchronizedAt ?? live.ReadAt:t}";
+            var context = (connection.State == ConnectionState.Offline ? "Offline · " : "") + $"Day {day.Definition.DisplayNumber} · {day.Status.Phase} · updated {(connection.LastSynchronizedAt ?? live.ReadAt).ToLocalTime():t}";
             CashierLiveContext.Text = AdminLiveContext.Text = context;
             EventDetails.Text = context + $"\n{day.Definition.EventDate} · {day.Definition.Currency} · {day.Definition.TimeZone}\n" +
                 string.Join("\n", live.Races.Races.Select(r =>
                     $"Race {r.Definition.Number}: {r.Definition.RaceId} · {r.Status.Phase} · version {r.Status.Version}\n" +
                     string.Join("\n", r.Definition.Runners.Select(h => $"  {h.ProgramNumber} · {h.HorseId} · {h.DisplayName}"))));
         }
+        if (live is null)
+        {
+            var message = connection.State switch {
+                ConnectionState.Denied => "Access denied", ConnectionState.Expired => "Session expired — sign in",
+                ConnectionState.Offline => "Offline", ConnectionState.Connecting => "Loading…", _ => "" };
+            CashierLiveContext.Text = AdminLiveContext.Text = message;
+            CashierLiveContext.Visibility = AdminLiveContext.Visibility = string.IsNullOrEmpty(message) ? Visibility.Collapsed : Visibility.Visible;
+        }
         RenderConnectionControls();
         RefreshComposerContext();
         RenderPurchases();
+        RenderAdministration();
     }
 }

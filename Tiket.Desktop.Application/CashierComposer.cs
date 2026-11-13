@@ -57,7 +57,7 @@ public sealed class CashierComposer : IDisposable
         revision++;
         pending?.Cancel(); pending?.Dispose(); pending = null;
         response = null; QuotedAt = null;
-        Message = Validation() ?? "Ready to request a non-binding server quote.";
+        Message = Validation() ?? "Ready for quote.";
         State = Validation() is null ? QuoteState.Editing : QuoteState.Invalid;
         Changed?.Invoke();
     }
@@ -119,7 +119,7 @@ public sealed class CashierComposer : IDisposable
             var result = await send(request, token);
             if (current != revision || token.IsCancellationRequested) return;
             response = result.Clone(); QuotedAt = DateTimeOffset.Now; State = QuoteState.Quoted;
-            Message = "Server quote; not purchased; terms may change. No funds reserved.";
+            Message = "Ready for review.";
         }
         catch (RpcException e) { if (current == revision) { State = Map(e.StatusCode); Message = ErrorMessage(State); } }
         catch (OperationCanceledException) { if (current == revision) { State = QuoteState.Cancelled; Message = ErrorMessage(State); } }

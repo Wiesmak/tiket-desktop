@@ -212,6 +212,8 @@ public class GrpcTransportTests
 
     internal sealed class GrpcFixture(WebApplication app) : IAsyncDisposable
     {
+        public string? AdministrationPath;
+        public byte[]? AdministrationRequest;
         public string? QuotePath;
         public QuoteCouponRequest? QuoteRequest;
         public string? MutationPath;
@@ -270,6 +272,23 @@ public class GrpcTransportTests
                     var reprint = ReprintCouponRequest.Parser.ParseFrom(fixture.MutationRequest);
                     result = new PrintStatus { CouponId = reprint.CouponId, PrintJobId = "fixture-reprint",
                         Type = PrintJobType.Reprint, Status = DispatchStatus.Pending };
+                }
+                else if (method is "CreateRaceDay" or "PublishRaceDay" or "StartRaceDay" or "OpenBetting" or "CloseBetting" or "EnrollPlayer" or "AddOpeningFunding" or "GetEnrollment" or "ListPlayers" or "GetAccount")
+                {
+                    fixture.AdministrationPath = context.Request.Path;
+                    fixture.AdministrationRequest = wire.AsSpan(5).ToArray();
+                    var day = ConnectionTests.Day.ToString();
+                    var player = QuoteTests.Horses[0];
+                    result = method switch {
+                        "CreateRaceDay" => new DayAcknowledgement { RaceDayId = day, Phase = DayPhase.Draft },
+                        "PublishRaceDay" => new DayAcknowledgement { RaceDayId = day, Phase = DayPhase.Ready, Version = 8 },
+                        "StartRaceDay" => new DayAcknowledgement { RaceDayId = day, Phase = DayPhase.Running, Version = 8 },
+                        "OpenBetting" => new RaceAcknowledgement { RaceDayId = day, RaceId = QuoteTests.RaceId, Phase = RacePhase.BettingOpen, Version = 14 },
+                        "CloseBetting" => new RaceAcknowledgement { RaceDayId = day, RaceId = QuoteTests.RaceId, Phase = RacePhase.BettingClosed, Version = 14 },
+                        "EnrollPlayer" or "AddOpeningFunding" or "GetEnrollment" => new EnrollmentInformation { RaceDayId = day, PlayerId = player, OpeningPaid = 31, OpeningPromotional = 7, Balance = 38, AccountVersion = 6 },
+                        "GetAccount" => new AccountInformation { RaceDayId = day, PlayerId = player, Balance = 38, Currency = "PLN", AccountVersion = 6 },
+                        _ => new PlayerList { Players = { new EnrollmentInformation { RaceDayId = day, PlayerId = player, Balance = 38, AccountVersion = 6 } } }
+                    };
                 }
                 else if (method == "GetPrintStatus") result = new PrintStatus { PrintJobId = "fixture-job",
                     Type = PrintJobType.Original, Status = DispatchStatus.Dispatched };

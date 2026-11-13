@@ -41,6 +41,7 @@ public sealed partial class ConnectionSession : IDisposable
 
     private void Clear()
     {
+        ResetEvent();
         review = null;
         inspectedPrintJobs.Clear();
         PurchaseStatus = "Sign in to inspect locally journal-known transactions.";
@@ -95,8 +96,7 @@ public sealed partial class ConnectionSession : IDisposable
             }, lifetime.Token);
             if (generation != current) return;
             material = value;
-            PurchaseStatus = value.OperatingGrants is null ? "Read-only session: verified financial operating context unavailable." :
-                "Ready · review a server quote or inspect locally known history. No new purchase has been submitted in this session.";
+            PurchaseStatus = value.OperatingGrants is null ? "Cashier access required for purchases." : "Ready";
             State = ConnectionState.SignedIn;
         }
         catch (OperationCanceledException) { if (generation == current) State = ConnectionState.Cancelled; }
@@ -122,6 +122,7 @@ public sealed partial class ConnectionSession : IDisposable
     {
         CheckExpiry();
         if (Profile is null || material is null || Busy || !Profile.KnownEvents.Contains(day)) return;
+        SelectEvent(day);
         Composer.SetContext(null, null);
         Overview = null;
         State = ConnectionState.Connecting;
@@ -136,14 +137,18 @@ public sealed partial class ConnectionSession : IDisposable
         CheckExpiry();
         if (disposed || Profile is null || material is null || Busy || mutationBusy || !Profile.KnownEvents.Contains(day))
             return false;
+        if (cancellation.IsCancellationRequested || (selectedEvent is not null && selectedEvent != day)) return false;
+        if (selectedEvent is null) selectedEvent = day;
+        var context = eventRevision;
         var current = generation;
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, cancellation);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, eventLifetime.Token, cancellation);
         try
         {
             backend ??= backendFactory(Profile);
             var result = await backend.ReadAsync(day, material.AccessToken, linked.Token);
             CheckExpiry();
-            if (current != generation || linked.IsCancellationRequested) return false;
+            if (current != generation || context != eventRevision || linked.IsCancellationRequested) return false;
+            UnusedEvent = null;
             LastSynchronizedAt = result.ReadAt;
             if (Overview is null || !Overview.Day.Equals(result.Day) || !Overview.Races.Equals(result.Races))
                 Overview = result;
@@ -157,7 +162,8 @@ public sealed partial class ConnectionSession : IDisposable
             State = ConnectionErrors.State(error.StatusCode);
             if (State == ConnectionState.Expired) { Clear(); State = ConnectionState.Expired; }
             else if (State is ConnectionState.Denied or ConnectionState.UnknownEvent)
-            { Overview = null; Composer.SetContext(null, null); review = null; }
+            { Overview = null; Composer.SetContext(null, null); review = null;
+              UnusedEvent = State == ConnectionState.UnknownEvent && material?.AdministrationGrants?.Events.Contains(day.ToString()) == true ? day : null; }
             Changed?.Invoke();
             return false;
         }
@@ -172,8 +178,7 @@ public sealed partial class ConnectionSession : IDisposable
 
     public void ClearEventContext()
     {
-        Overview = null; LastSynchronizedAt = null; review = null;
-        Composer.SetContext(null, null); Changed?.Invoke();
+        ResetEvent(); Changed?.Invoke();
     }
 
     public Task QuoteAsync() => Composer.QuoteAsync(async (request, cancellation) =>
@@ -202,17 +207,19 @@ public sealed partial class ConnectionSession : IDisposable
     private async Task ExecuteAsync(Func<IReadOnlyBackend, CancellationToken, Task<object>> operation, bool secured)
     {
         var current = generation;
+        var context = eventRevision;
+        using var operationCancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, eventLifetime.Token);
         Busy = true;
         Changed?.Invoke();
         try
         {
             backend ??= backendFactory(Profile!);
-            var result = await operation(backend, lifetime.Token);
-            if (current != generation) return;
+            var result = await operation(backend, operationCancellation.Token);
+            if (current != generation || (secured && context != eventRevision)) return;
             if (secured)
             {
                 CheckExpiry();
-                if (current != generation) return;
+                if (current != generation || (secured && context != eventRevision)) return;
                 Overview = (EventOverview)result;
                 State = ConnectionState.Ready;
             }
@@ -220,14 +227,14 @@ public sealed partial class ConnectionSession : IDisposable
         }
         catch (RpcException error)
         {
-            if (current != generation) return;
+            if (current != generation || (secured && context != eventRevision)) return;
             var state = ConnectionErrors.State(error.StatusCode);
             if (secured) Overview = null;
             if (state == ConnectionState.Expired) Clear();
             State = state;
         }
-        catch (OperationCanceledException) { if (current == generation) State = ConnectionState.Cancelled; }
-        catch (Exception) { if (current == generation) State = ConnectionState.Error; }
+        catch (OperationCanceledException) { if (current == generation && (!secured || context == eventRevision)) State = ConnectionState.Cancelled; }
+        catch (Exception) { if (current == generation && (!secured || context == eventRevision)) State = ConnectionState.Error; }
         finally
         {
             if (current == generation) Busy = false;
@@ -239,6 +246,7 @@ public sealed partial class ConnectionSession : IDisposable
     {
         if (disposed) return;
         disposed = true; Clear(); lifetime.Dispose(); Changed = null;
-        if (!mutationBusy) { journal?.Dispose(); journal = null; }
+        if (!mutationBusy) { journal?.Dispose(); journal = null; administrationJournal?.Dispose(); administrationJournal = null; }
+        eventLifetime.Dispose();
     }
 }

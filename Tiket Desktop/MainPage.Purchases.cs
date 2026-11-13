@@ -35,6 +35,8 @@ public sealed partial class MainPage
         }
     }
     private ContentDialog? financialDialog;
+    private object? dialogEvent;
+    private bool purchaseDialog;
     private string? dialogSubject;
     private string? dialogProfile;
     private string? historyBinding;
@@ -43,19 +45,19 @@ public sealed partial class MainPage
     {
         if (!renderingPurchases) RenderPurchases();
     }
-    private async Task<ContentDialogResult> ShowFinancialDialogAsync(ContentDialog dialog)
+    private async Task<ContentDialogResult> ShowFinancialDialogAsync(ContentDialog dialog, bool purchase = false)
     {
         if (financialDialog is not null) return ContentDialogResult.None;
         dialog.RequestedTheme = RequestedTheme;
-        financialDialog = dialog;
+        financialDialog = dialog; dialogEvent = KnownEvents.SelectedItem; purchaseDialog = purchase;
         dialogSubject = connection.Subject; dialogProfile = connection.Profile?.Id;
         try { return await dialog.ShowAsync(); }
-        finally { financialDialog = null; dialogSubject = null; dialogProfile = null; }
+        finally { financialDialog = null; dialogSubject = null; dialogProfile = null; dialogEvent = null; purchaseDialog = false; }
     }
     private void RenderPurchases()
     {
         if (PurchaseFeedback is null) return;
-        if (financialDialog is not null && (connection.Subject != dialogSubject || connection.Profile?.Id != dialogProfile)) financialDialog.Hide();
+        if (financialDialog is not null && (connection.Subject != dialogSubject || connection.Profile?.Id != dialogProfile || !Equals(dialogEvent, KnownEvents.SelectedItem) || (purchaseDialog && !connection.IsPurchaseReviewCurrent))) financialDialog.Hide();
         PurchaseFeedback.Text = connection.PurchaseStatus;
         renderingPurchases = true;
         var selected = PurchasePos.SelectedItem;
@@ -91,7 +93,7 @@ public sealed partial class MainPage
                 Content = new ScrollViewer { MaxHeight = 420, Content = new TextBlock { Text = review.Summary + "\n" + account,
                     TextWrapping = TextWrapping.Wrap } }, PrimaryButtonText = "Purchase",
                 CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Close };
-            if (await ShowFinancialDialogAsync(dialog) == ContentDialogResult.Primary) await connection.ConfirmPurchaseAsync(review.ReviewId);
+            if (await ShowFinancialDialogAsync(dialog, true) == ContentDialogResult.Primary) await connection.ConfirmPurchaseAsync(review.ReviewId);
             else connection.CancelPurchaseReview();
             RenderPurchases();
             RefreshPurchaseHistory();
@@ -112,7 +114,9 @@ public sealed partial class MainPage
             PurchaseFeedback.Text = connection.PurchaseStatus;
             foreach (var entry in entries)
             {
-                LivePurchaseHistory.Children.Add(new TextBlock { Text = entry.Summary, TextWrapping = TextWrapping.Wrap });
+                LivePurchaseHistory.Children.Add(new TextBlock { Text = entry.DisplaySummary, TextWrapping = TextWrapping.Wrap });
+                LivePurchaseHistory.Children.Add(new Expander { Header = "Details", HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Content = new TextBlock { Text = entry.Summary, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true } });
                 if (entry.State == "ACKED")
                 {
                     var status = new TextBlock { Text = "Checking print status…", TextWrapping = TextWrapping.Wrap };
@@ -122,7 +126,7 @@ public sealed partial class MainPage
                     LivePurchaseHistory.Children.Add(status);
                     if (entry.CanReprint)
                     {
-                        reprint = new Button { Content = "Request deliberate reprint", IsEnabled = connection.CanRequestReprint(entry.Id) };
+                        reprint = new Button { Content = "Reprint", IsEnabled = connection.CanRequestReprint(entry.Id) };
                         reprint.Click += async (_, _) =>
                         {
                             var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Duplicate output risk",

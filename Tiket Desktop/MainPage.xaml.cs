@@ -20,6 +20,7 @@ public sealed partial class MainPage : Page
         OnBuilderStepChanged(this, null!);
         Navigation.SelectedItem = CashierItem;
         InitializeConnection();
+        InitializeAdministration();
     }
 
     // Only measure the view here. All layout setters live in XAML, using the
@@ -53,7 +54,7 @@ public sealed partial class MainPage : Page
             _ => "Cashier"
         };
         ContentScroll.ChangeView(null, 0, null, true);
-        if (destinationChanged) AnimatePerspective(Workspace);
+        if (destinationChanged) { AnimatePerspective(Workspace); refresh.Request(); }
         if (IsLoaded && sender.DisplayMode != NavigationViewDisplayMode.Expanded && sender.IsPaneOpen)
         {
             focusAfterPaneClose = true;
@@ -93,7 +94,7 @@ public sealed partial class MainPage : Page
     {
         if (StepDescription is null || BuilderStep.SelectedIndex < 0) return;
         var step = BuilderStep.SelectedIndex;
-        StepDescription.Text = PreviewPresentation.StepDescription(step);
+        StepDescription.Text = new[] { "Event basics", "Select a race to edit its roster and pools.", "Ordered horse roster", "Integer unit stakes and take rates", "Validate the complete local definition." }[step];
         BasicsStep.Visibility = step == 0 ? Visibility.Visible : Visibility.Collapsed;
         RacesStep.Visibility = step == 1 ? Visibility.Visible : Visibility.Collapsed;
         RunnersStep.Visibility = step == 2 ? Visibility.Visible : Visibility.Collapsed;

@@ -11,7 +11,7 @@ internal sealed record AdministrationBinding(string Profile, string Backend, str
     public override string ToString() => "Administration context";
 }
 internal sealed record AdministrationRecord(int Schema, Guid Id, AdministrationBinding Binding, string Method,
-    byte[] Request, string Key, DateTimeOffset CreatedAt, MutationState State, byte[]? Response)
+    byte[] Request, string Key, DateTimeOffset CreatedAt, MutationState State, byte[]? Response, bool Rejected = false)
 {
     public override string ToString() => "Encrypted administration command";
 }
@@ -102,7 +102,10 @@ internal sealed class AdministrationJournal : IDisposable
     internal AdministrationRecord Acknowledge(Guid id, AdministrationBinding binding, byte[] response) =>
         Transition(id, binding, MutationState.Acked, response.Length > 0 ? response : throw new ArgumentException("Empty acknowledgement."));
 
-    private AdministrationRecord Transition(Guid id, AdministrationBinding binding, MutationState next, byte[]? response)
+    internal AdministrationRecord MarkRejected(Guid id, AdministrationBinding binding) =>
+        Transition(id, binding, MutationState.Unknown, null, true);
+
+    private AdministrationRecord Transition(Guid id, AdministrationBinding binding, MutationState next, byte[]? response, bool rejected = false)
     {
         lock (gate)
         {
@@ -111,13 +114,13 @@ internal sealed class AdministrationJournal : IDisposable
                 ?? throw new InvalidOperationException("Intent unavailable in this authenticated context.");
             var allowed = next switch
             {
-                MutationState.Sending => old.State is MutationState.Prepared or MutationState.Unknown,
+                MutationState.Sending => !old.Rejected && old.State is MutationState.Prepared or MutationState.Unknown,
                 MutationState.Unknown => old.State == MutationState.Sending,
                 MutationState.Acked => old.State == MutationState.Sending,
                 _ => false
             };
             if (!allowed) throw new InvalidOperationException("Invalid journal transition.");
-            var value = old with { State = next, Response = response?.ToArray() };
+            var value = old with { State = next, Response = response?.ToArray(), Rejected = rejected };
             Commit(records.Select(r => r.Id == id ? value : r).ToList());
             return Clone(value);
         }
@@ -153,7 +156,8 @@ internal sealed class AdministrationJournal : IDisposable
             new[] { r.Binding.Profile, r.Binding.Backend, r.Binding.Issuer, r.Binding.Client,
                 r.Binding.Subject, r.Binding.Event, r.Key }.Any(string.IsNullOrWhiteSpace) ||
             r.Request is not { Length: > 0 } || !Enum.IsDefined(r.State) ||
-            (r.State == MutationState.Acked) != (r.Response is { Length: > 0 }))
+            (r.State == MutationState.Acked) != (r.Response is { Length: > 0 }) ||
+            (r.Rejected && r.State != MutationState.Unknown))
             throw new IOException("Invalid administration record.");
         var (day, key) = AdministrationWire.Identity(r.Method, r.Request);
         if (day != r.Binding.Event || key != r.Key)
