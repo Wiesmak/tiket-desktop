@@ -96,7 +96,7 @@ public class AdministrationJournalTests
     [Fact] public void SchemaAndMethodAreIndependentOfPurchaseJournal()
     {
         var r = Record();
-        Assert.Throws<IOException>(() => AdministrationWire.Identity("pl.umamusume.tiket.api.v1.RaceDayService/CloseRaceDay", r.Request));
+        Assert.Throws<IOException>(() => AdministrationWire.Identity("pl.umamusume.tiket.api.v1.RaceDayService/UnknownOperation", r.Request));
         var dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         try {
             using (var journal = new AdministrationJournal(dir)) journal.Prepare(r);

@@ -156,6 +156,10 @@
                                         <TextBlock x:Name="AdminDayState" TextWrapping="Wrap" />
                                         <Button x:Name="PublishDayButton" Content="Publish day" Click="OnPublishDay" />
                                         <Button x:Name="StartDayButton" Content="Start day" Click="OnStartDay" />
+                                        <Button x:Name="FinalizeDayButton" Content="Finalize day" Click="OnFinalizeDay" />
+                                        <Button x:Name="CompleteDayButton" Content="Complete day" Click="OnCompleteDay" />
+                                        <Button x:Name="CloseDayButton" Content="Close day" Click="OnCloseDay" />
+                                        <TextBlock x:Name="ClosureSummary" TextWrapping="Wrap" />
                                         <ComboBox x:Name="ServerAdminRace" Header="Race" HorizontalAlignment="Stretch" SelectionChanged="OnAdminRaceChanged" />
                                         <TextBlock x:Name="AdminRaceState" TextWrapping="Wrap" />
                                         <Button x:Name="OpenRaceButton" Content="Open betting" Click="OnOpenRace" />
@@ -185,6 +189,13 @@
                                         </Expander>
                                         <TextBlock Text="Player enrollment and opening funding" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
                                         <TextBox x:Name="AdminPlayer" Header="Player UUID" MaxLength="36" TextChanged="OnAdminPlayerChanged" />
+                                        <Button Content="Player coupons and detail" Click="OnPlayerHistory" />
+                                        <Button Content="Race status and revisions" Click="OnRaceHistory" />
+                                        <Expander Header="Selected history" HorizontalAlignment="Stretch"><TextBlock x:Name="StaffHistory" TextWrapping="Wrap" IsTextSelectionEnabled="True" /></Expander>
+                                        <TextBlock x:Name="AccountDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                        <TextBlock x:Name="WithdrawalDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                        <Button x:Name="CashOutButton" Content="Review recorded cashout" Click="OnCashOut" />
+                                        <Expander Header="Movement history" HorizontalAlignment="Stretch"><TextBlock x:Name="MovementDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" /></Expander>
                                         <TextBlock x:Name="AdminAccountStatus" TextWrapping="Wrap" />
                                         <TextBox x:Name="OpeningPaid" Header="Paid units" Text="0" InputScope="Number" MaxLength="19" />
                                         <TextBox x:Name="OpeningPromotional" Header="Promotional units" Text="0" InputScope="Number" MaxLength="19" />

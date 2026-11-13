@@ -18,6 +18,9 @@ internal static class AdministrationWire
                 identity = (create.Definition?.RaceDayId ?? "", create.IdempotencyKey); break;
             case Prefix + "RaceDayService/PublishRaceDay":
             case Prefix + "RaceDayService/StartRaceDay":
+            case Prefix + "RaceDayService/FinalizeRaceDay":
+            case Prefix + "RaceDayService/CompleteRaceDay":
+            case Prefix + "RaceDayService/CloseRaceDay":
                 var day = DayCommand.Parser.ParseFrom(bytes); request = day;
                 identity = (day.RaceDayId, day.IdempotencyKey); break;
             case Prefix + "RaceService/OpenBetting":
@@ -32,6 +35,9 @@ internal static class AdministrationWire
                 request = Phase6Wire.Parse(method, bytes);
                 var command = Phase6Wire.Command(request);
                 identity = (command.RaceDayId, command.IdempotencyKey); break;
+            case Prefix + "AccountService/CashOut":
+                var cashout = CashOutRequest.Parser.ParseFrom(bytes); request = cashout;
+                identity = (cashout.RaceDayId, cashout.IdempotencyKey); break;
             case Prefix + "EnrollmentService/EnrollPlayer":
                 var enroll = EnrollPlayerRequest.Parser.ParseFrom(bytes); request = enroll;
                 identity = (enroll.RaceDayId, enroll.IdempotencyKey); break;
@@ -47,12 +53,13 @@ internal static class AdministrationWire
     }
     internal static void Verify(AdministrationRecord record, byte[] bytes)
     {
+        if (record.Method == Prefix + "AccountService/CashOut") { AccountPresentation.VerifyReceipt(record, bytes); return; }
         if (Phase6Wire.IsMutation(record.Method)) { Phase6Wire.Verify(record, bytes); return; }
-        if (record.Method is Prefix + "RaceDayService/CreateRaceDay" or Prefix + "RaceDayService/PublishRaceDay" or Prefix + "RaceDayService/StartRaceDay")
+        if (record.Method is Prefix + "RaceDayService/CreateRaceDay" or Prefix + "RaceDayService/PublishRaceDay" or Prefix + "RaceDayService/StartRaceDay" or Prefix + "RaceDayService/FinalizeRaceDay" or Prefix + "RaceDayService/CompleteRaceDay" or Prefix + "RaceDayService/CloseRaceDay")
         {
             var ack = DayAcknowledgement.Parser.ParseFrom(bytes);
             var create = record.Method.EndsWith("/CreateRaceDay", StringComparison.Ordinal);
-            var expectedPhase = create ? DayPhase.Draft : record.Method.EndsWith("/PublishRaceDay", StringComparison.Ordinal) ? DayPhase.Ready : DayPhase.Running;
+            var expectedPhase = record.Method.Split('/').Last() switch { "CreateRaceDay" => DayPhase.Draft, "PublishRaceDay" => DayPhase.Ready, "StartRaceDay" => DayPhase.Running, "FinalizeRaceDay" => DayPhase.Finalizing, "CompleteRaceDay" => DayPhase.Completed, _ => DayPhase.Closed };
             var expectedVersion = create ? 0 : checked(DayCommand.Parser.ParseFrom(record.Request).ExpectedVersion + 1);
             if (ack.RaceDayId != record.Binding.Event || ack.Version != expectedVersion || ack.Phase != expectedPhase)
                 throw new IOException("Day acknowledgement mismatch.");

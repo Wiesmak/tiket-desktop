@@ -223,6 +223,16 @@ public sealed partial class MainPage
         return connection.ReviewCreate(plan);
     });
     private async void OnPublishDay(object sender, RoutedEventArgs e) => await ShowAdministrationReview(() => connection.ReviewDay(AdministrationOperation.PublishRaceDay));
+    private async Task ShowStaffHistory(bool coupons) {
+        try { await connection.ReadStaffHistoryAsync(coupons); StaffHistory.Text = connection.StaffHistoryText; }
+        catch (Exception error) { StaffHistory.Text = error.Message; }
+    }
+    private async void OnPlayerHistory(object sender, RoutedEventArgs e) => await ShowStaffHistory(true);
+    private async void OnRaceHistory(object sender, RoutedEventArgs e) => await ShowStaffHistory(false);
+    private async void OnFinalizeDay(object sender, RoutedEventArgs e) => await ShowAdministrationReview(() => connection.ReviewDay(AdministrationOperation.FinalizeRaceDay));
+    private async void OnCompleteDay(object sender, RoutedEventArgs e) => await ShowAdministrationReview(() => connection.ReviewDay(AdministrationOperation.CompleteRaceDay));
+    private async void OnCloseDay(object sender, RoutedEventArgs e) => await ShowAdministrationReview(() => connection.ReviewDay(AdministrationOperation.CloseRaceDay));
+    private async void OnCashOut(object sender, RoutedEventArgs e) => await ShowAdministrationReview(connection.ReviewCashOut);
     private async void OnStartDay(object sender, RoutedEventArgs e) => await ShowAdministrationReview(() => connection.ReviewDay(AdministrationOperation.StartRaceDay));
     private async void OnOpenRace(object sender, RoutedEventArgs e) => await ShowAdministrationReview(() => connection.ReviewRace(AdministrationOperation.OpenBetting, ((AdminRaceOption)ServerAdminRace.SelectedItem).Id));
     private async void OnCloseRace(object sender, RoutedEventArgs e) => await ShowAdministrationReview(() => connection.ReviewRace(AdministrationOperation.CloseBetting, ((AdminRaceOption)ServerAdminRace.SelectedItem).Id));
@@ -262,7 +272,7 @@ public sealed partial class MainPage
         var binding = connection.Subject is null ? null : string.Join("|", connection.Subject, connection.Profile?.Id, KnownEvents.SelectedItem);
         if (binding != administrationUiBinding)
         {
-            administrationUiBinding = binding; renderedAdminRaces = null; commandsStamp = null; showPlayers = false; administrationUiError = null;
+            StaffHistory.Text = ""; administrationUiBinding = binding; renderedAdminRaces = null; commandsStamp = null; showPlayers = false; administrationUiError = null;
             renderingAdministration = true; AdminPlayer.Text = ""; OpeningPaid.Text = OpeningPromotional.Text = "0";
             inspectFrozenPlan = false; NewPlan(); renderingAdministration = false;
         }
@@ -282,6 +292,10 @@ public sealed partial class MainPage
         AdminDayState.Text = live is null ? "No server day loaded" : $"{live.Day.Status.Phase} · version {live.Day.Status.Version}";
         PublishDayButton.IsEnabled = connection.IsEventAdmin && idle && live?.Day.Status.Phase == DayPhase.Draft;
         StartDayButton.IsEnabled = connection.IsEventAdmin && idle && live?.Day.Status.Phase == DayPhase.Ready;
+        FinalizeDayButton.IsEnabled = connection.IsEventAdmin && idle && live?.Day.Status.Phase == DayPhase.Running;
+        CompleteDayButton.IsEnabled = connection.IsEventAdmin && idle && live?.Day.Status.Phase == DayPhase.Finalizing;
+        CloseDayButton.IsEnabled = connection.IsEventAdmin && idle && live?.Day.Status.Phase == DayPhase.Completed;
+        ClosureSummary.Text = live is null ? "" : $"{live.Races.Races.Count(r => r.Status.Phase is RacePhase.Settled or RacePhase.Voided)}/{live.Races.Races.Count} terminal races. Backend verifies unresolved legs and all enrolled accounts before closure.";
         if (!Equals(renderedAdminRaces, live?.Races))
         {
             var selected = (ServerAdminRace.SelectedItem as AdminRaceOption)?.Id;
@@ -308,13 +322,18 @@ public sealed partial class MainPage
         var accountText = account is null ? (string.IsNullOrEmpty(connection.AccountReadStatus) ? "Select a player" : connection.AccountReadStatus) :
             $"Balance: {account.Balance} {account.Currency} · v{account.AccountVersion}" + (connection.AccountReadStatus == "Offline" ? $" · Offline · updated {connection.AccountReadAt:t}" : "");
         AdminAccountStatus.Text = CashierAccountStatus.Text = accountText;
+        StaffHistory.Text = connection.StaffHistoryText;
+        AccountDetails.Text = account is null ? "" : AccountPresentation.Account(account);
+        WithdrawalDetails.Text = connection.WithdrawalText;
+        MovementDetails.Text = connection.AccountHistoryText;
+        CashOutButton.IsEnabled = idle && connection.CanCashOut;
         var beforeStart = live?.Day.Status.Phase is DayPhase.Draft or DayPhase.Ready;
         EnrollPlayerButton.IsEnabled = connection.IsEnrollmentCashier && idle && beforeStart;
         AddFundingButton.IsEnabled = connection.IsEnrollmentCashier && idle && beforeStart && enrollment is not null && account?.AcceptedStakes == 0;
         ListPlayersButton.IsEnabled = connection.IsAuditor && live is not null && idle;
         ListPlayersButton.Visibility = connection.IsAuditor ? Visibility.Visible : Visibility.Collapsed;
         AdminPlayers.Text = showPlayers && connection.EnrolledPlayers is { } list ?
-            string.Join("\n", list.Players.Select(p => $"{p.PlayerId} · balance {p.Balance} · v{p.AccountVersion}")) : "";
+            connection.PlayerAccountSummary : "";
         if (adminDialogReview is { } reviewId && !connection.IsAdministrationReviewCurrent(reviewId)) financialDialog?.Hide();
         try
         {

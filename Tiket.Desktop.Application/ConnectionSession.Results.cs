@@ -12,7 +12,7 @@ public sealed partial class ConnectionSession
     public WinnersReport? Winners { get; private set; }
     public string ResultsStatus { get; private set; } = "";
     public bool HasResultRole(string role) => material?.AdministrationGrants?.Roles.Contains(role) == true;
-    private void ResetResults() { resultsRead++; resultRace = null; LatestResult = null; Winners = null; ResultsStatus = ""; settlementReviewRevision = null; }
+    private void ResetResults() { StaffHistoryText = ""; resultsRead++; resultRace = null; LatestResult = null; Winners = null; ResultsStatus = ""; settlementReviewRevision = null; }
     public void SelectResultRace(string? race)
     {
         if (resultRace == race) return;

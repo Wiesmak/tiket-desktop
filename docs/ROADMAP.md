@@ -29,7 +29,7 @@ Owner authorized pure Phase 3 implementation/testing after Phase 2 PR #3 merge w
 
 Functional native administration, encrypted local plans, immutable create, lifecycle/onboarding and coordinated cashier/account/print refresh are implemented and exercised against a newly provisioned disposable event. PR #6 merged at d35a1d6; post-merge Windows CI passed.
 
-Phase 6 implements native scratch/void, result submission/verification/settlement and AUDITOR Winners & Payouts with exact-key administration recovery. The populated-race native settlement/report flow passed in the disposable lab; see VALIDATION_PHASE_6.md. Phase 7 remains out of scope.
+Phase 6 implements native scratch/void, result submission/verification/settlement and AUDITOR Winners & Payouts with exact-key administration recovery. The populated-race native settlement/report flow passed in the disposable lab; see VALIDATION_PHASE_6.md. Phase 7 now adds native accounts/movements, server withdrawal quotes and receipts, journaled cashout, reviewed day completion/closure and the remaining practical read workflows. See VALIDATION_PHASE_7.md; operational hardening and signed deployment remain Phases 8–9.
 
 ## Phase 6 binding acceptance: settled winning coupons
 

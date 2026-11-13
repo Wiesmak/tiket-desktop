@@ -1,0 +1,32 @@
+﻿# Phase 7 validation — 2026-11-13
+- Base: origin/master a2a84431666a6c3659e4f4aeb17b079347701a33; Phase 6 PR #7 confirmed merged.
+- Native accounts show exact int64 server units, all ledger totals, sequence-paged movements, completed-day quote and receipt.
+- Cashout and day transitions use the existing encrypted journal, original protobuf/key, subject/profile/event binding and explicit recovery.
+- Cashout requires verified CASHIER plus event/player grants; closure independently requires EVENT_ADMIN.
+- New focused tests: 21 Phase 7 cases; final affected test selection: 43 passed.
+- One full local suite: 317 passed, one obsolete unsupported-CloseRaceDay assertion failed; corrected assertion passed separately.
+- Native Debug build passed with zero warnings/errors; existing Windows CI retains Debug, Release and unsigned MSIX checks.
+- Live automated system-browser PKCE and native UIA used existing disposable credentials; no screenshots, reseeding or physical printer.
+- Event a9c4f03e-98cf-4587-a8c6-9759c742292a: ListPlayers returned one enrolled player e53ffc71-667e-4b0d-8c83-df50070aa4ec.
+- Initial state RUNNING v2; first race SETTLED; second BETTING_CLOSED. Full coupon/detail history contained only the first-race coupon.
+- Native VoidRace on second race refunded 0 legs/0 PLN; Finalize reached v3; Complete reached v4.
+- Source account: opening paid 1050, promotional 110, accepted stakes 10, refunds 0, qualifying turnover 10, winnings 9, balance 1159 PLN.
+- Server quote: unlocked promotional 10, withdrawable 1069, forfeitable 90; account v3/day v4.
+- Native reviewed CashOut returned withdrawn 1069, forfeiture 90, ending balance 0/account v4; receipt timestamp 2026-11-13T13:57:13.240058Z.
+- Native Close reached CLOSED v5. No physical payment was asserted.
+- Exact original-key replay returned byte-identical saved receipt; before/after movements unchanged: stake 10, winnings 9, withdrawal 1069, forfeiture 90.
+- Exactly one FINAL_WITHDRAWAL and one PROMOTIONAL_FORFEITURE; real account read confirmed zero and cashed_out.
+- Fresh signed CASHIER-only token: CloseRaceDay PERMISSION_DENIED; out-of-event receipt read PERMISSION_DENIED.
+- Live harness assertions completed; PowerShell child ExitCode retrieval initially reported a wrapper failure after successful assertions (no repeat cashout).
+- Hosted CI and exact head are linked in the PR.
+
+RPC inventory (verified generated-client call sites and native entry points; all 37 reachable):
+- System 1: Ping — Settings.
+- RaceDay 7: Create/Get/Publish/Start/Finalize/Complete/Close — builder, overview and reviewed lifecycle.
+- Race 7: List/Get/GetStatus/Open/Close/Scratch/Void — overview, selected history and race actions.
+- Enrollment 4: Enroll/AddOpeningFunding/GetEnrollment/ListPlayers — onboarding/account and authorized full roster.
+- Betting 4: Quote/Purchase/GetCoupon/ListPlayerCoupons — cashier, winners and selected-player history/detail.
+- Printing 2: GetPrintStatus/ReprintCoupon — existing ticket history.
+- Result 7: Submit/Verify/Get/ListRevisions/Settle/GetSettlement/ListLegResolutions — results, selected race history and winners.
+- Account 5: GetAccount/GetWithdrawalQuote/CashOut/ListMovements/GetCashoutReceipt — selected account and reviewed cashout.
+- Reads retain backend resource/POS restrictions; no artificial internal-API controls or backend/protobuf changes.
