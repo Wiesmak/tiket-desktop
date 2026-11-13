@@ -268,10 +268,14 @@ public sealed partial class MainPage
     }
     private void RenderAdministration()
     {
+        RenderAliases();
+        NewLabEventButton.Visibility = ProvisionPlayersButton.Visibility = connection.CanProvisionLab ? Visibility.Visible : Visibility.Collapsed;
         if (LocalPlanStatus is null) return;
         var binding = connection.Subject is null ? null : string.Join("|", connection.Subject, connection.Profile?.Id, KnownEvents.SelectedItem);
         if (binding != administrationUiBinding)
         {
+            activeRound = null; RoundDetails.Text = ""; PlaceRoundButton.IsEnabled = false;
+            eventReport = null; reportContext = null; EventReportDetails.Text = ""; ExportEventReportButton.IsEnabled = false;
             StaffHistory.Text = ""; administrationUiBinding = binding; renderedAdminRaces = null; commandsStamp = null; showPlayers = false; administrationUiError = null;
             renderingAdministration = true; AdminPlayer.Text = ""; OpeningPaid.Text = OpeningPromotional.Text = "0";
             inspectFrozenPlan = false; NewPlan(); renderingAdministration = false;
