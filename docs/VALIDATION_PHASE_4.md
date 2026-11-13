@@ -5,6 +5,7 @@ Started 2026-11-12; continued 2026-11-13, Europe/Warsaw. This is development acc
 ## Source and environment
 
 - Desktop branch: `feat/phase4-safe-purchase-print`, created from freshly fetched `origin/master`, `ed8580c3307f6a12c2e753c81e6e2dfa42318f04`, merged Phase 3 PR #4. Phase 3 final-head CI 43251665458 and merge CI 43302757603 are historical successful baselines (133 tests).
+- Implementation commit: `2f0c36a57e2befb4c22d06e1cdda4d727cff5f45`. Its evidence-only successor records this immutable code head; final delivery SHA/PR/hosted CI are supplied in the handoff and PR metadata.
 - Contract snapshot remains pinned to backend upstream `d840ab12a08b06304b5e4d26568ba33e98a65ddc`; all four checked-in hashes pass. Generated code remains in obj.
 - The actual read-only backend checkout is `1759f3afef21b9523db918ab7712666709d3453b`, clean throughout this task. Its four protobufs match desktop line content; three raw Windows hashes differ by line endings. Upstream master was verified with ls-remote and was still d840ab12. No backend checkout, schema or source modification was performed.
 - Running image: `sha256:0707d091a756c7c6d5db96677c7fb46fe5a1a4879ac6f8df4658f75a18f85d92`. Running `/opt/tiket/app.jar` SHA-256: `92093fd172b63cbff9f24497a8f5f9ed83518553cd6dc12776cdf7b565a760f4`. OCI revision is unknown and the JAR contains no git/build revision metadata; its exact source commit cannot be independently attested. This provenance limit is not replaced by an invented server SHA.
