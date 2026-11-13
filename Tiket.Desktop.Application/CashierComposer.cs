@@ -43,6 +43,13 @@ public sealed class CashierComposer : IDisposable
         day = newDay?.Clone(); race = newRace?.Clone();
         Invalidate();
     }
+    public void SynchronizeContext(RaceDayInformation? newDay, RaceInformation? newRace)
+    {
+        if (Equals(day, newDay) && Equals(race, newRace)) return;
+        var wasQuoted = response is not null;
+        SetContext(newDay, newRace);
+        if (wasQuoted) { State = QuoteState.Stale; Message = "Race changed — check selection and get a new quote."; Changed?.Invoke(); }
+    }
     public void Edit(QuoteDraft draft) { Draft = draft; Invalidate(); }
     public void Cancel() { Invalidate(); State = QuoteState.Cancelled; Message = "Quote cancelled."; Changed?.Invoke(); }
     private void Invalidate()

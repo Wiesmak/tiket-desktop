@@ -18,6 +18,7 @@ public sealed partial class ConnectionSession : IDisposable
     public string? Subject => material?.Subject;
     public DateTimeOffset? ExpiresAt => material?.ExpiresAt;
     public EventOverview? Overview { get; private set; }
+    public DateTimeOffset? LastSynchronizedAt { get; private set; }
     public string? PingStatus { get; private set; }
     public string? SafeDiagnostic { get; private set; }
     public bool Busy { get; private set; }
@@ -52,6 +53,7 @@ public sealed partial class ConnectionSession : IDisposable
         backend = null;
         material = null;
         Overview = null;
+        LastSynchronizedAt = null;
         PingStatus = null;
         SafeDiagnostic = null;
         Busy = false;
@@ -127,6 +129,52 @@ public sealed partial class ConnectionSession : IDisposable
         await ExecuteAsync(async (service, token) => (object)await service.ReadAsync(day, credential, token), true);
     }
 
+
+    /// <summary>Read-only synchronization: retain editor and review when the payload is unchanged.</summary>
+    public async Task<bool> SynchronizeAsync(Guid day, CancellationToken cancellation)
+    {
+        CheckExpiry();
+        if (disposed || Profile is null || material is null || Busy || mutationBusy || !Profile.KnownEvents.Contains(day))
+            return false;
+        var current = generation;
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, cancellation);
+        try
+        {
+            backend ??= backendFactory(Profile);
+            var result = await backend.ReadAsync(day, material.AccessToken, linked.Token);
+            CheckExpiry();
+            if (current != generation || linked.IsCancellationRequested) return false;
+            LastSynchronizedAt = result.ReadAt;
+            if (Overview is null || !Overview.Day.Equals(result.Day) || !Overview.Races.Equals(result.Races))
+                Overview = result;
+            State = ConnectionState.Ready;
+            Changed?.Invoke();
+            return true;
+        }
+        catch (Grpc.Core.RpcException error)
+        {
+            if (current != generation || linked.IsCancellationRequested) return false;
+            State = ConnectionErrors.State(error.StatusCode);
+            if (State == ConnectionState.Expired) { Clear(); State = ConnectionState.Expired; }
+            else if (State is ConnectionState.Denied or ConnectionState.UnknownEvent)
+            { Overview = null; Composer.SetContext(null, null); review = null; }
+            Changed?.Invoke();
+            return false;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch
+        {
+            if (current == generation && !linked.IsCancellationRequested)
+            { State = ConnectionState.Offline; Changed?.Invoke(); }
+            return false;
+        }
+    }
+
+    public void ClearEventContext()
+    {
+        Overview = null; LastSynchronizedAt = null; review = null;
+        Composer.SetContext(null, null); Changed?.Invoke();
+    }
 
     public Task QuoteAsync() => Composer.QuoteAsync(async (request, cancellation) =>
     {

@@ -26,15 +26,18 @@ public sealed partial class MainPage
         connection.Composer.Changed += RenderQuote;
         RenderQuote();
     }
-    private void OnKnownEventChanged(object sender, SelectionChangedEventArgs e)
+    private async void OnKnownEventChanged(object sender, SelectionChangedEventArgs e)
     {
-        // A new selected event has not been authorized/read yet.
+        refresh.Select(null, refreshClock.Elapsed);
+        retryRequested = true;
+        connection.ClearEventContext();
         composerOverview = null; selectedQuoteRace = null;
         connection.Composer.SetContext(null, null);
         renderingComposer = true; QuoteRace.ItemsSource = null; QuotePool.ItemsSource = null;
         renderingComposer = false;
         BuildChoices();
-        ComposerAvailability.Text = "Read the selected known event in Settings before composing.";
+        ComposerAvailability.Text = "Loading event…";
+        await SynchronizeVisibleAsync();
     }
     private void RefreshComposerContext()
     {
@@ -49,7 +52,7 @@ public sealed partial class MainPage
         renderingComposer = false;
         SetRace();
         ComposerAvailability.Text = composerOverview is null ? "Sign in and read an authorized known event in Settings." :
-            $"SERVER · status read {composerOverview.ReadAt:g}. Availability and grants remain server-authoritative.";
+            "Ready";
     }
     private void OnQuoteRace(object sender, SelectionChangedEventArgs e) { if (!renderingComposer) SetRace(); }
     private void SetRace()
@@ -63,7 +66,7 @@ public sealed partial class MainPage
         QuotePool.SelectedItem = connection.Composer.Draft.Pool;
         if (QuotePool.SelectedIndex < 0 && next is not null) QuotePool.SelectedIndex = 0;
         renderingComposer = false;
-        connection.Composer.SetContext(composerOverview?.Day, next);
+        connection.Composer.SynchronizeContext(composerOverview?.Day, next);
         if (next is not null && !sameRace) connection.Composer.Edit(QuoteDraft.Empty with { Units = QuoteUnits.Text });
         ChangePool(sameRace);
     }
@@ -144,7 +147,7 @@ public sealed partial class MainPage
         if (QuoteFeedback is null || renderingComposer) return;
         connection.Composer.Edit(connection.Composer.Draft with { Units = QuoteUnits.Text });
     }
-    private async void OnGetQuote(object sender, RoutedEventArgs e) => await connection.QuoteAsync();
+    private async void OnGetQuote(object sender, RoutedEventArgs e) { await connection.QuoteAsync(); refresh.Request(); }
     private void OnCancelQuote(object sender, RoutedEventArgs e) => connection.Composer.Cancel();
     private void RenderQuote()
     {
@@ -152,7 +155,7 @@ public sealed partial class MainPage
         var editor = connection.Composer;
         bool available = composerOverview is not null;
         CashierQuotationHeading.Text = available ?
-            (connection.Profile?.DevelopmentLoopback == true ? "DISPOSABLE LAB — ACTUAL TEST DEBIT · cashier" : "LIVE / SERVER · cashier quotation") : "Cashier quotation · disconnected";
+            "Cashier" : "Cashier quotation · disconnected";
         QuoteRace.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
         foreach (var field in new FrameworkElement[] { QuotePool, QuoteMode, QuoteUnits, OrderGuidance })
             field.Visibility = selectedQuoteRace is not null ? Visibility.Visible : Visibility.Collapsed;

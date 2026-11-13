@@ -42,9 +42,7 @@
                                 SizeChanged="OnWorkspaceSizeChanged">
                         <TextBlock x:Name="WorkspaceHeading" Text="Cashier" IsTabStop="True"
                                    Style="{ThemeResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1" />
-                        <InfoBar IsOpen="True" IsClosable="False" Severity="Informational"
 
-                                 Message="Purchases debit the backend account after review. Uncertain outcomes require original-intent recovery. Print dispatch does not confirm paper delivery." />
                         <StackPanel x:Name="CashierPanel" Spacing="8"><TextBlock x:Name="CashierLiveContext" Visibility="Collapsed" TextWrapping="Wrap" />
                             <TextBlock x:Name="CashierQuotationHeading" Text="Cashier quotation · disconnected" Style="{ThemeResource BodyStrongTextBlockStyle}" />
                             <TextBlock x:Name="PurchaseFeedback" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
@@ -71,9 +69,8 @@
                                         <Button x:Name="CancelQuoteButton" Content="Cancel quote" Click="OnCancelQuote" IsEnabled="False" />
                                     </StackPanel>
                                     <TextBlock x:Name="QuoteSummary" TextWrapping="Wrap" IsTextSelectionEnabled="True" Visibility="Collapsed" />
-                                    <TextBlock Text="Server quote; not purchased; terms may change. No money is reserved. Last-known status can change without notification." TextWrapping="Wrap" />
-                                    <TextBox x:Name="PurchasePlayer" Header="Authorized player UUID (no name directory)" MaxLength="36" />
-                                    <ComboBox x:Name="PurchasePos" Header="POS from verified token grants" HorizontalAlignment="Stretch" SelectionChanged="OnPurchasePosChanged" />
+                                    <TextBox x:Name="PurchasePlayer" Header="Player UUID" MaxLength="36" />
+                                    <ComboBox x:Name="PurchasePos" Header="Point of sale" HorizontalAlignment="Stretch" SelectionChanged="OnPurchasePosChanged" />
                                     <TextBlock x:Name="PurchaseContext" TextWrapping="Wrap" />
                                     <Button x:Name="ReviewPurchaseButton" Content="Review purchase" Click="OnReviewPurchase" IsEnabled="False" />
                                 </StackPanel>
@@ -81,8 +78,7 @@
                                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                                     <StackPanel Spacing="12">
-                                        <TextBlock Text="LIVE · locally journal-known history" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
-                                        <Button Content="Refresh locally known history" Click="OnRefreshPurchaseHistory" />
+                                        <TextBlock Text="Recent transactions" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
                                         <StackPanel x:Name="LivePurchaseHistory" Spacing="12" />
                                     </StackPanel>
                                 </Border>
@@ -158,8 +154,8 @@
                             </StackPanel>
                             <Button x:Name="SignOutButton" Content="Sign out / switch operator" Click="OnSignOut" />
                             <TextBlock x:Name="PingDetails" TextWrapping="Wrap" />
-                            <ComboBox x:Name="KnownEvents" SelectionChanged="OnKnownEventChanged" Header="Known event UUID (selection, not a grant)" HorizontalAlignment="Stretch" />
-                            <Button x:Name="ReadButton" Content="Read / refresh event" Click="OnReadEvent" />
+                            <ComboBox x:Name="KnownEvents" SelectionChanged="OnKnownEventChanged" Header="Event" HorizontalAlignment="Stretch" />
+                            <Button x:Name="ReadButton" Content="Retry" Click="OnReadEvent" />
                             <TextBlock x:Name="EventDetails" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                             <ComboBox Header="Appearance" SelectedIndex="0" SelectionChanged="OnThemeChanged" AutomationProperties.Name="Appearance">
                                 <x:String>System</x:String><x:String>Light</x:String><x:String>Dark</x:String>

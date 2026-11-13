@@ -1,0 +1,64 @@
+﻿using Google.Protobuf;
+using Pl.Umamusume.Tiket.Api.V1;
+
+namespace Tiket.Desktop.Application;
+
+// Explicit Phase 5 allow-list. No suffix dispatch, generic RPC invocation or Phase 6/7 command support.
+internal static class AdministrationWire
+{
+    internal const string Prefix = "pl.umamusume.tiket.api.v1.";
+    internal static (string Day, string Key) Identity(string method, byte[] bytes)
+    {
+        IMessage request;
+        (string Day, string Key) identity;
+        switch (method)
+        {
+            case Prefix + "RaceDayService/CreateRaceDay":
+                var create = CreateRaceDayRequest.Parser.ParseFrom(bytes); request = create;
+                identity = (create.Definition?.RaceDayId ?? "", create.IdempotencyKey); break;
+            case Prefix + "RaceDayService/PublishRaceDay":
+            case Prefix + "RaceDayService/StartRaceDay":
+                var day = DayCommand.Parser.ParseFrom(bytes); request = day;
+                identity = (day.RaceDayId, day.IdempotencyKey); break;
+            case Prefix + "RaceService/OpenBetting":
+            case Prefix + "RaceService/CloseBetting":
+                var race = RaceCommand.Parser.ParseFrom(bytes); request = race;
+                identity = (race.RaceDayId, race.IdempotencyKey); break;
+            case Prefix + "EnrollmentService/EnrollPlayer":
+                var enroll = EnrollPlayerRequest.Parser.ParseFrom(bytes); request = enroll;
+                identity = (enroll.RaceDayId, enroll.IdempotencyKey); break;
+            case Prefix + "EnrollmentService/AddOpeningFunding":
+                var funding = AddOpeningFundingRequest.Parser.ParseFrom(bytes); request = funding;
+                identity = (funding.RaceDayId, funding.IdempotencyKey); break;
+            default: throw new IOException("Unsupported administration method.");
+        }
+        if (!request.ToByteArray().AsSpan().SequenceEqual(bytes) ||
+            !Guid.TryParseExact(identity.Day, "D", out var id) || id == Guid.Empty ||
+            string.IsNullOrWhiteSpace(identity.Key)) throw new IOException("Invalid original administration payload.");
+        return identity;
+    }
+    internal static void Verify(AdministrationRecord record, byte[] bytes)
+    {
+        if (record.Method is Prefix + "RaceDayService/CreateRaceDay" or Prefix + "RaceDayService/PublishRaceDay" or Prefix + "RaceDayService/StartRaceDay")
+        {
+            var ack = DayAcknowledgement.Parser.ParseFrom(bytes);
+            if (ack.RaceDayId != record.Binding.Event || ack.Version < 0 || ack.Phase == DayPhase.Unspecified)
+                throw new IOException("Day acknowledgement mismatch.");
+        }
+        else if (record.Method is Prefix + "RaceService/OpenBetting" or Prefix + "RaceService/CloseBetting")
+        {
+            var request = RaceCommand.Parser.ParseFrom(record.Request);
+            var ack = RaceAcknowledgement.Parser.ParseFrom(bytes);
+            if (ack.RaceDayId != record.Binding.Event || ack.RaceId != request.RaceId || ack.Version < 0 || ack.Phase == RacePhase.Unspecified)
+                throw new IOException("Race acknowledgement mismatch.");
+        }
+        else
+        {
+            var player = record.Method == Prefix + "EnrollmentService/EnrollPlayer" ?
+                EnrollPlayerRequest.Parser.ParseFrom(record.Request).PlayerId : AddOpeningFundingRequest.Parser.ParseFrom(record.Request).PlayerId;
+            var ack = EnrollmentInformation.Parser.ParseFrom(bytes);
+            if (ack.RaceDayId != record.Binding.Event || ack.PlayerId != player || ack.AccountVersion < 0)
+                throw new IOException("Enrollment acknowledgement mismatch.");
+        }
+    }
+}

@@ -1,0 +1,33 @@
+﻿using Google.Protobuf;
+using Grpc.Core;
+using Pl.Umamusume.Tiket.Api.V1;
+
+namespace Tiket.Desktop.Application;
+
+/// <summary>Internal prerequisite; callers must still supply a validated live session and explicit review.</summary>
+internal sealed class JournaledAdministration(AdministrationJournal journal)
+{
+    // The durable state transition arbitrates competing calls; no retry loop is allowed here.
+    internal async Task<AdministrationRecord> SendAsync(Guid intentId, AdministrationBinding authenticatedBinding,
+        Func<AdministrationRecord, CancellationToken, Task<byte[]>> transmit, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var sending = journal.MarkSending(intentId, authenticatedBinding);
+        try
+        {
+            // Dispatch receives a copy, so neither the caller nor the transport can edit the saved original.
+            var bytes = await transmit(sending, cancellationToken).ConfigureAwait(false);
+            AdministrationWire.Verify(sending, bytes);
+            // Save even after sign-out/cancellation if the response was received. UI generation is a separate concern.
+            return journal.Acknowledge(intentId, authenticatedBinding, bytes);
+        }
+        catch (Exception error)
+        {
+            // Even denial/precondition is conservatively uncertain: an earlier transmission may have committed.
+            // If this write also fails, the durable SENDING marker recovers to UNKNOWN; journal stays quarantined.
+            try { journal.MarkUnknown(intentId, authenticatedBinding); } catch { }
+            throw new MutationUncertainException(error is RpcException rpc ? rpc.StatusCode : null);
+        }
+    }
+
+}

@@ -14,7 +14,7 @@ public interface IReadOnlyBackend : IDisposable
 }
 public sealed record EventOverview(RaceDayInformation Day, RaceList Races, DateTimeOffset ReadAt);
 
-public sealed class ReadOnlyBackend : IReadOnlyBackend
+public sealed partial class ReadOnlyBackend : IReadOnlyBackend
 {
     private readonly GrpcChannel channel;
     private readonly ConnectionProfile profile;

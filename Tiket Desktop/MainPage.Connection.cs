@@ -11,6 +11,26 @@ public sealed partial class MainPage
         if (!await Windows.System.Launcher.LaunchUriAsync(uri))
             throw new InvalidOperationException("Windows could not activate the system browser.");
     }));
+    private readonly RefreshCoordinator refresh = new();
+    private readonly System.Diagnostics.Stopwatch refreshClock = System.Diagnostics.Stopwatch.StartNew();
+    private bool foreground = true;
+    private bool retryRequested;
+    public void SetForeground(bool value)
+    {
+        foreground = value;
+        if (!value) refresh.Select(null, refreshClock.Elapsed);
+        else refresh.Request();
+    }
+    private async Task SynchronizeVisibleAsync()
+    {
+        var key = connection.Subject is null || KnownEvents.SelectedItem is not Guid ||
+            (!retryRequested && connection.State is ConnectionState.Denied or ConnectionState.UnknownEvent) ? null :
+            string.Join("|", connection.Profile?.Id, connection.Subject, KnownEvents.SelectedItem);
+        refresh.Select(key, refreshClock.Elapsed);
+        if (KnownEvents.SelectedItem is Guid day)
+            await refresh.TickAsync(refreshClock.Elapsed, foreground && IsLoaded,
+                State.Destination == Destination.Cashier, async ct => { retryRequested = false; var success = await connection.SynchronizeAsync(day, ct); if (success) await RefreshVisiblePrintsAsync(ct); return success; });
+    }
     private readonly DispatcherTimer expiryTimer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     private void InitializeConnection()
@@ -28,9 +48,9 @@ public sealed partial class MainPage
         }
         // Selection is explicit, including after restart. Tokens and profile preferences are not persisted.
         RenderConnectionControls();
-        expiryTimer.Tick += (_, _) => connection.CheckExpiry();
+        expiryTimer.Tick += async (_, _) => { connection.CheckExpiry(); await SynchronizeVisibleAsync(); };
         expiryTimer.Start();
-        Unloaded += (_, _) => { expiryTimer.Stop(); connection.Dispose(); };
+        Unloaded += (_, _) => { expiryTimer.Stop(); refresh.Dispose(); connection.Dispose(); };
     }
     public void CloseConnection() { expiryTimer.Stop(); connection.Dispose(); }
 
@@ -44,11 +64,11 @@ public sealed partial class MainPage
         KnownEvents.ItemsSource = profile.KnownEvents;
         KnownEvents.SelectedIndex = profile.KnownEvents.Length > 0 ? 0 : -1;
     }
-    private async void OnSignIn(object sender, RoutedEventArgs e) => await connection.SignInAsync();
+    private async void OnSignIn(object sender, RoutedEventArgs e) { await connection.SignInAsync(); await SynchronizeVisibleAsync(); }
     private async void OnPing(object sender, RoutedEventArgs e) => await connection.PingAsync();
     private async void OnReadEvent(object sender, RoutedEventArgs e)
     {
-        if (KnownEvents.SelectedItem is Guid id) await connection.ReadAsync(id);
+        retryRequested = true; refresh.Request(); await SynchronizeVisibleAsync();
     }
     private void OnSignOut(object sender, RoutedEventArgs e) => connection.SignOut();
     private void OnCancelConnection(object sender, RoutedEventArgs e) => connection.Cancel();
@@ -57,6 +77,7 @@ public sealed partial class MainPage
     {
         SignInButton.IsEnabled = PingButton.IsEnabled = connection.Profile is not null && !connection.Busy;
         ReadButton.IsEnabled = connection.Subject is not null && !connection.Busy;
+        ReadButton.Visibility = connection.State is ConnectionState.Denied or ConnectionState.UnknownEvent or ConnectionState.Offline or ConnectionState.Error ? Visibility.Visible : Visibility.Collapsed;
         KnownEvents.IsEnabled = connection.Profile is not null && !connection.Busy;
         CancelButton.IsEnabled = connection.Busy;
         SignOutButton.IsEnabled = connection.Subject is not null || connection.Busy;
@@ -76,7 +97,7 @@ public sealed partial class MainPage
         if (live is not null)
         {
             var day = live.Day;
-            var context = $"SERVER · {day.Definition.RaceDayId} · {day.Status.Phase} · version {day.Status.Version} · read {live.ReadAt:g}";
+            var context = $"Day {day.Definition.DisplayNumber} · {day.Status.Phase} · updated {connection.LastSynchronizedAt ?? live.ReadAt:t}";
             CashierLiveContext.Text = AdminLiveContext.Text = context;
             EventDetails.Text = context + $"\n{day.Definition.EventDate} · {day.Definition.Currency} · {day.Definition.TimeZone}\n" +
                 string.Join("\n", live.Races.Races.Select(r =>

@@ -33,3 +33,7 @@ QuoteCoupon is the only newly invoked RPC. It uses the managed backend channel, 
 Editor revision plus session generation and cloned event/race context prevent old results crossing selections, refreshed rosters/statuses, operators or profiles. Units parse directly as positive int64 ASCII text. Pricing/canonical terms, versions and opaque confirmation remain exactly from the server in memory only, without reservation or durable financial intent. Errors are sanitized; no raw server message, token or sensitive payload is logged or persisted.
 
 Purchase/reprint/admin/funding/settlement/withdrawal calls, token persistence, offline betting and printer access remain absent. Phase 4 requires real packaged OIDC/transport acceptance and a separately reviewed durable encrypted exact-request/idempotency recovery design. Synthetic OIDC, HTTP/2 fixtures and injected visual evidence do not close real-service gates.
+
+## Phase 5 foundations — work in progress
+
+See [VALIDATION_PHASE_5.md](VALIDATION_PHASE_5.md) for current scope and open gates. Coordinated read refresh preserves unchanged quotes; it never retries PurchaseCoupon, ReprintCoupon or administration commands. AdministrationJournal is a separate encrypted schema and does not migrate PurchaseJournal v1. Independent signed role/event grants are required for future admin integration. Normal verified cashier purchase/reprint remains enabled. Phase 5 administration is not yet operationally complete.

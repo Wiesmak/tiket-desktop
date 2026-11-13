@@ -100,11 +100,8 @@ public sealed partial class ConnectionSession
             request.IdempotencyKey, request.PlayerId, request.CashierIdentifier, quote.ToByteArray(),
             DateTimeOffset.UtcNow, MutationState.Prepared, null, null);
         review = (generation, record);
-        return new(record.Id, $"{(Profile!.DevelopmentLoopback ? "DISPOSABLE LAB — ACTUAL TEST DEBIT" : "ACTUAL PURCHASE DEBIT")}\n" +
-            $"Profile: {Profile.Id}\nBackend: {binding.Backend}\nIssuer: {binding.Issuer}\nClient: {binding.Client}\n" +
-            $"Player: {playerId}\nPOS: {pos} · Cashier: {grants.Cashier}\n{p.BetType}\n" +
-            $"Selection: {CashierComposer.Canonical(p.Selection, Overview?.Races.Races.FirstOrDefault(x => x.Definition.RaceId == p.RaceId)?.Definition.Runners ?? new Google.Protobuf.Collections.RepeatedField<Runner>())}\nTotal: {p.TotalStake} {p.Currency}\n" +
-            $"Day version: {quote.RaceDayVersion} · Race version: {quote.RaceVersion}\nThis confirmation submits a real debit. Printing is backend outbox only.");
+        return new(record.Id, $"Player: {playerId}\nPOS: {pos} · Cashier: {grants.Cashier}\n{p.BetType}\n" +
+            $"Selection: {CashierComposer.Canonical(p.Selection, Overview?.Races.Races.FirstOrDefault(x => x.Definition.RaceId == p.RaceId)?.Definition.Runners ?? new Google.Protobuf.Collections.RepeatedField<Runner>())}\nTotal: {p.TotalStake} {p.Currency}");
     }
 
     public void CancelPurchaseReview() => review = null;
@@ -211,7 +208,7 @@ public sealed partial class ConnectionSession
         await SubmitAsync(r);
     }
 
-    public async Task<string> RefreshPrintAsync(Guid id, string day, int pos)
+    public async Task<string> RefreshPrintAsync(Guid id, string day, int pos, CancellationToken cancellation = default)
     {
         var binding = Binding(day, pos);
         EnsureJournal();
@@ -222,20 +219,22 @@ public sealed partial class ConnectionSession
         var current = generation;
         backend ??= backendFactory(Profile!);
         if (backend is not ReadOnlyBackend transport) throw new InvalidOperationException();
-        var status = await transport.ReadPrintStatusAsync(job, material!.AccessToken, lifetime.Token);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, cancellation);
+        var status = await transport.ReadPrintStatusAsync(job, material!.AccessToken, linked.Token);
+        linked.Token.ThrowIfCancellationRequested();
         if (current != generation || status.CouponId != r.Coupon || status.PrintJobId != job ||
             status.Type != (r.OriginalPurchase is null ? PrintJobType.Original : PrintJobType.Reprint)) throw new OperationCanceledException();
         if (r.OriginalPurchase is null) inspectedPrintJobs.Add(r.Id);
         var meaning = status.Status switch
         {
-            DispatchStatus.Pending => "Waiting for backend outbox worker.",
-            DispatchStatus.Claimed => "Backend worker holds a dispatch lease; output may be in progress.",
-            DispatchStatus.Retrying => "Backend will retry; duplicate output is possible.",
-            DispatchStatus.Dispatched => "Output adapter accepted bytes; physical paper is NOT confirmed.",
+            DispatchStatus.Pending => "Pending print.",
+            DispatchStatus.Claimed => "Printing.",
+            DispatchStatus.Retrying => "Printer retry pending.",
+            DispatchStatus.Dispatched => "Sent to printer.",
             DispatchStatus.PermanentlyFailed => "Backend attempt limit/final error; inspect output before explicit reprint.",
             _ => "Unrecognized backend status; investigate."
         };
-        return $"CURRENT · {status.Type} · {status.Status} · attempts {status.AttemptCount}\nJob: {job}\n{meaning}";
+        return $"{status.Type} · {status.Status} · {meaning}";
     }
 
     public async Task ReprintAsync(Guid id, string day, int pos)
